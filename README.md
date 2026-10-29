@@ -45,7 +45,7 @@ python3 -m http.server 8000
 
 ## 資料
 
-`data/phones.json` 是研究同事提供的清單，請不要為了通過畫面而改裡面的數值。
+`data/phones.json` 是研究同事提供的清單，請不要為了通過畫面而改裡面的數值。目前 131 支，其中 `core: true` 的主力機型 104 支。
 
 格式見 `data/schema.json`。重點：
 
@@ -56,7 +56,7 @@ python3 -m http.server 8000
 - 規格值可以是 null，但只有該欄 `field_status` 為 `unconfirmed` 時才可以
 - `official_endurance_hours` 可為 null，不在 `field_status` 裡
 - `source_type` 為 `official` 或 `gsmarena`；`regulatory` 仍接受
-- `battery_source_url` 與 `battery_source_type`（`filing` 或 `press`）可省略，或成對出現，也可同為 null
+- `battery_source_url` 與 `battery_source_type`（`filing` 或 `press`）只用於 iPhone，而且必須成對。其他品牌省略這兩個欄位，不要填 null
 - `chip_variants` 可省略，可以是字串或字串陣列
 - `refresh_note` 可省略或 null
 - `image_url` 與 `image_page_url` 可省略或 null，只能是 http(s) 遠端網址。`image_note` 與 `image_source` 是選填文字。不要提交圖片檔
