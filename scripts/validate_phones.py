@@ -18,8 +18,12 @@ ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = ROOT / "data" / "schema.json"
 DATA_PATH = ROOT / "data" / "phones.json"
 CUTOFF = date(2023, 11, 1)
+# Researched list size. main() and --self-test both reject a drift.
+EXPECTED_PHONES = 131
+EXPECTED_CORE = 104
 FOLDABLE = re.compile(r"(?i)\b(?:fold|flip)\b|摺疊|摺屏")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+GSM_HOSTS = {"www.gsmarena.com", "gsmarena.com"}
 
 # Unit sanity: catch a kg or mm value stored in a grams/inches/mAh field.
 RANGES = {
@@ -37,6 +41,7 @@ def main(argv: list[str]) -> int:
         return self_test(schema)
     records = json.loads(DATA_PATH.read_text(encoding="utf-8"))
     errors = validate_records(records, schema)
+    errors.extend(census_errors(records))
     if errors:
         print(f"{DATA_PATH}: {len(errors)} problem(s)")
         for err in errors:
@@ -59,11 +64,33 @@ def validate_records(records, schema) -> list[str]:
             continue
         for err in validate_phone(rec, schema):
             errors.append(f"{label}: {err}")
-        key = (rec.get("brand"), rec.get("model"))
+        # brand+model is the identity. There is no id field.
+        key = identity_key(rec.get("brand"), rec.get("model"))
         if key in seen:
             errors.append(f"{label}: duplicate brand+model (also at {seen[key]})")
         else:
             seen[key] = label
+    return errors
+
+
+def identity_key(brand, model) -> tuple:
+    def fold(value):
+        if isinstance(value, str):
+            return value.casefold().strip()
+        return value
+
+    return (fold(brand), fold(model))
+
+
+def census_errors(records) -> list[str]:
+    if not isinstance(records, list):
+        return []
+    core = sum(1 for rec in records if isinstance(rec, dict) and rec.get("core") is True)
+    errors = []
+    if len(records) != EXPECTED_PHONES:
+        errors.append(f"expected {EXPECTED_PHONES} phones, found {len(records)}")
+    if core != EXPECTED_CORE:
+        errors.append(f"expected {EXPECTED_CORE} core phones, found {core}")
     return errors
 
 
@@ -91,6 +118,11 @@ def validate_phone(phone: dict, schema: dict) -> list[str]:
         if isinstance(value, str) and not value.strip():
             errors.append(f"{field} is blank")
 
+    for key in ("brand", "model"):
+        value = phone.get(key)
+        if isinstance(value, str) and value != value.strip():
+            errors.append(f"{key} has leading or trailing whitespace")
+
     for field, (low, high) in RANGES.items():
         value = phone.get(field)
         if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -99,56 +131,73 @@ def validate_phone(phone: dict, schema: dict) -> list[str]:
             errors.append(f"{field}={value} is outside the expected unit range {low}..{high}")
 
     announce = phone.get("announce_date")
+    parsed_announce = None
     if isinstance(announce, str) and DATE_RE.fullmatch(announce):
-        parsed = parse_date(announce)
-        if parsed is None:
+        parsed_announce = parse_date(announce)
+        if parsed_announce is None:
             errors.append("announce_date is not a real calendar date")
-        elif parsed < CUTOFF:
+        elif parsed_announce < CUTOFF:
             errors.append("announce_date must be on or after 2023-11-01 (global first launch)")
-        elif phone.get("year") != parsed.year:
+        elif phone.get("year") != parsed_announce.year:
             errors.append(
                 f"year {phone.get('year')!r} does not match announce_date {announce}"
             )
 
     checked = phone.get("checked_date")
-    if isinstance(checked, str) and DATE_RE.fullmatch(checked) and parse_date(checked) is None:
-        errors.append("checked_date is not a real calendar date")
+    parsed_checked = None
+    if isinstance(checked, str) and DATE_RE.fullmatch(checked):
+        parsed_checked = parse_date(checked)
+        if parsed_checked is None:
+            errors.append("checked_date is not a real calendar date")
+    if parsed_announce and parsed_checked and parsed_checked < parsed_announce:
+        errors.append("checked_date is earlier than announce_date")
 
     source = phone.get("source_url")
     if isinstance(source, str) and source:
-        parsed_url = urlparse(source)
-        if parsed_url.scheme not in ("http", "https") or not parsed_url.netloc:
+        if bad_http_url(source):
             errors.append("source_url must be an http(s) URL with a host")
+        elif urlparse(source).netloc.lower() in GSM_HOSTS and phone.get("source_type") != "gsmarena":
+            errors.append("gsmarena.com source_url requires source_type gsmarena")
+        elif phone.get("source_type") == "gsmarena" and urlparse(source).netloc.lower() not in GSM_HOSTS:
+            errors.append("source_type gsmarena requires a gsmarena.com source_url")
 
-    battery_url = phone.get("battery_source_url")
-    battery_kind = phone.get("battery_source_type")
-    has_battery_url = isinstance(battery_url, str) and bool(battery_url.strip())
-    has_battery_kind = battery_kind not in (None, "")
-    if has_battery_url != has_battery_kind:
-        errors.append("battery_source_url and battery_source_type must be set together")
-    if has_battery_url:
-        parsed_battery = urlparse(battery_url)
-        if parsed_battery.scheme not in ("http", "https") or not parsed_battery.netloc:
-            errors.append("battery_source_url must be an http(s) URL with a host")
+    errors.extend(validate_battery_source(phone))
 
     for image_url_field in ("image_url", "image_page_url"):
         image_url = phone.get(image_url_field)
-        if isinstance(image_url, str) and image_url:
-            parsed_image = urlparse(image_url)
-            if parsed_image.scheme not in ("http", "https") or not parsed_image.netloc:
-                errors.append(f"{image_url_field} must be a remote http(s) URL, not a local image file")
-    for image_field in ("image_note", "image_source"):
-        if image_field in phone and phone[image_field] is not None and not isinstance(phone[image_field], str):
-            errors.append(f"{image_field} must be a string when present")
+        if isinstance(image_url, str) and image_url and bad_http_url(image_url):
+            errors.append(f"{image_url_field} must be a remote http(s) URL, not a local image file")
 
     model = phone.get("model")
     if isinstance(model, str) and FOLDABLE.search(model):
         errors.append("model looks foldable; this list is non-foldable phones only")
-
-    notes = phone.get("notes", "")
-    if "notes" in phone and not isinstance(notes, str):
-        errors.append("notes must be a string when present")
     return errors
+
+
+def bad_http_url(value: str) -> bool:
+    parsed = urlparse(value)
+    return parsed.scheme not in ("http", "https") or not parsed.netloc
+
+
+def validate_battery_source(phone: dict) -> list[str]:
+    """iPhones need a filing or press battery source. Other brands omit the pair."""
+    battery_url = phone.get("battery_source_url")
+    battery_kind = phone.get("battery_source_type")
+    has_battery_url = isinstance(battery_url, str) and bool(battery_url.strip())
+    if phone.get("brand") == "Apple":
+        if not has_battery_url or battery_kind not in ("filing", "press"):
+            return [
+                "Apple phones must set battery_source_url and battery_source_type "
+                "(filing or press) together; Apple does not publish mAh"
+            ]
+        if bad_http_url(battery_url):
+            return ["battery_source_url must be an http(s) URL with a host"]
+        return []
+    if "battery_source_url" in phone or "battery_source_type" in phone:
+        return [
+            "battery_source_url and battery_source_type are iPhone-only; omit them on other brands"
+        ]
+    return []
 
 
 def parse_date(value: str):
@@ -173,8 +222,7 @@ def validate_node(value, schema: dict, path: str) -> list[str]:
 
     if isinstance(value, str):
         pattern = schema.get("pattern")
-        if pattern and value is not None and not re.fullmatch(pattern, value):
-            # Nullable strings use a pattern that should not be applied to null.
+        if pattern and not re.fullmatch(pattern, value):
             errors.append(f"{path}: {value!r} does not match {pattern}")
         min_length = schema.get("minLength")
         if min_length is not None and len(value) < min_length:
@@ -258,15 +306,10 @@ def json_type(value) -> str:
     return type(value).__name__
 
 
-SPEC_FIELDS = [
-    "chip",
-    "battery_mAh",
-    "weight_g",
-    "screen_inch",
-    "resolution",
-    "refresh_hz",
-    "os_at_launch",
-]
+# Same list as field_status.required. Kept in one place so fixtures cannot drift.
+SPEC_FIELDS = list(
+    json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))["properties"]["field_status"]["required"]
+)
 
 BASE_PHONE = {
     "brand": "Samsung",
@@ -347,6 +390,7 @@ def self_test(schema: dict) -> int:
     ok &= expect_ok(
         "optional detail fields",
         [fixture(
+            brand="Apple",
             model="Details",
             chip_variants=["Exynos (ROW)", "Snapdragon (USA)"],
             refresh_note="144 Hz only in game mode",
@@ -359,18 +403,42 @@ def self_test(schema: dict) -> int:
         [fixture(model="String Variants", chip_variants="Kirin 9000 or Kirin 9010")],
     )
     ok &= expect_ok(
-        "null refresh note and battery source",
-        [fixture(model="Null Details", refresh_note=None, battery_source_url=None, battery_source_type=None, chip_variants=[])],
+        "null refresh note",
+        [fixture(model="Null Details", refresh_note=None, chip_variants=[])],
     )
     ok &= expect_fail(
         "battery source type without url",
-        [fixture(model="Half Battery Source", battery_source_type="press")],
-        "must be set together",
+        [fixture(brand="Apple", model="Half Battery Source", battery_source_type="press")],
+        "together",
     )
     ok &= expect_fail(
         "bad battery source type",
-        [fixture(model="Bad Battery Source", battery_source_type="wiki", battery_source_url="https://example.com/a")],
+        [fixture(
+            brand="Apple",
+            model="Bad Battery Source",
+            battery_source_type="wiki",
+            battery_source_url="https://example.com/a",
+        )],
         "battery_source_type",
+    )
+    ok &= expect_fail(
+        "battery source on non-iphone",
+        [fixture(
+            model="Samsung Battery",
+            battery_source_url="https://example.com/a",
+            battery_source_type="press",
+        )],
+        "iPhone-only",
+    )
+    ok &= expect_fail(
+        "iphone missing battery source",
+        [fixture(brand="Apple", model="Bare iPhone")],
+        "Apple phones must",
+    )
+    ok &= expect_fail(
+        "null battery source",
+        [fixture(brand="Apple", model="Null Battery", battery_source_url=None, battery_source_type=None)],
+        "Apple phones must",
     )
     ok &= expect_fail(
         "chip variants number",
@@ -419,6 +487,35 @@ def self_test(schema: dict) -> int:
     )
     ok &= expect_fail("bad brand", [fixture(brand="Sony")], "not one of")
     ok &= expect_fail("duplicate brand+model", [fixture(), fixture()], "duplicate brand+model")
+    ok &= expect_fail(
+        "duplicate brand+model ignoring case",
+        [fixture(model="Case Phone"), fixture(model="case phone")],
+        "duplicate brand+model",
+    )
+    ok &= expect_fail(
+        "padded model",
+        [fixture(model=" Padded ")],
+        "whitespace",
+    )
+    ok &= expect_fail(
+        "gsmarena type wrong host",
+        [fixture(model="Wrong Host", source_type="gsmarena", source_url="https://example.com/phone")],
+        "gsmarena.com",
+    )
+    ok &= expect_fail(
+        "official type on gsmarena",
+        [fixture(
+            model="Arena Official",
+            source_type="official",
+            source_url="https://www.gsmarena.com/phone.php",
+        )],
+        "source_type gsmarena",
+    )
+    ok &= expect_fail(
+        "checked before announce",
+        [fixture(model="Early Check", announce_date="2024-06-01", year=2024, checked_date="2024-05-01")],
+        "checked_date is earlier",
+    )
     ok &= expect_fail("missing source", [fixture_without("source_url")], "missing source_url")
     ok &= expect_fail(
         "missing field status",
@@ -432,6 +529,13 @@ def self_test(schema: dict) -> int:
 
     real = json.loads(DATA_PATH.read_text(encoding="utf-8"))
     ok &= expect_ok("researcher dataset", real)
+    cases += 1
+    census = census_errors(real)
+    if census:
+        ok = False
+        print("FAIL researcher census:")
+        for err in census:
+            print(f"  {err}")
 
     if not ok:
         return 1
