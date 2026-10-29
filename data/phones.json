@@ -575,7 +575,6 @@
   "year": 2026,
   "chip": "Exynos 2600 (2 nm)",
   "chip_variants": [
-   "Exynos 2600 (2 nm) (International/ROW)",
    "Qualcomm SM8850-1-AD Snapdragon 8 Elite Gen 5 (3 nm) (USA/Canada/China)"
   ],
   "battery_mAh": 4900,
@@ -612,7 +611,6 @@
   "year": 2026,
   "chip": "Exynos 2600 (2 nm)",
   "chip_variants": [
-   "Exynos 2600 (2 nm) (International/ROW)",
    "Qualcomm SM8850-1-AD Snapdragon 8 Elite Gen 5 (3 nm) (USA/Canada/China)"
   ],
   "battery_mAh": 4300,
