@@ -1,6 +1,6 @@
 # 手機二選一
 
-Static Traditional Chinese page for comparing two phones side by side. Data lives in `data/phones.json`. There is no backend.
+Static Traditional Chinese site. The main flow is a single-elimination tournament (二選一淘汰賽). 自由比較 stays available as a second tab. Data lives in `data/phones.json`. There is no backend; an in-progress bracket is stored in `localStorage`.
 
 ## 本機預覽
 
@@ -12,9 +12,17 @@ python3 -m http.server 8000
 
 然後開啟 <http://localhost:8000>。
 
-這個倉庫是 private。GitHub Free 的 GitHub Pages 只支援 public 倉庫，所以這裡沒有加 Pages 部署，也沒有用任何需要金鑰或付費的預覽服務。
+公開預覽用 GitHub Pages。工作流程在 `.github/workflows/pages.yml`，會在推上 `main` 時用 `actions/deploy-pages` 發布。倉庫設定要選 Pages → Build and deployment → Source：GitHub Actions。啟用後的網址是 <https://apenguin72.github.io/phone-versus/>。
 
-## 怎麼比
+## 淘汰賽
+
+從 `core: true` 的主力機型隨機抽出 16、32 或 64 支，沒有重複。「重新抽」會重抽。「開始比賽」用畫面上這一抽。主力機型不夠時，該規模的按鈕會停用並說明原因。
+
+每場兩張卡片，點選要留下的一支。連點只會晉級一次。回合名稱是 64強、32強、16強、8強、準決賽、決賽，最後一場是準決賽兩名落敗者的季軍戰。可以回到上一步。重新整理或按瀏覽器上一頁不會清掉進行中的比賽。
+
+照片只讀遠端 `image_url`。沒有網址或載入失敗時，顯示品牌加型號的色塊。不要把圖片檔放進這個倉庫。
+
+## 自由比較
 
 預設只列出 `core: true` 的主力機型。關掉「只看主力機型」會看到全部機型。每一邊都可以用品牌篩選，再用搜尋框縮小型號。
 
@@ -51,6 +59,7 @@ python3 -m http.server 8000
 - `battery_source_url` 與 `battery_source_type`（`filing` 或 `press`）可省略，或成對出現，也可同為 null
 - `chip_variants` 可省略，可以是字串或字串陣列
 - `refresh_note` 可省略或 null
+- `image_url` 可省略或 null，只能是 http(s) 遠端網址。`image_note` 與 `image_source` 是選填文字。不要提交圖片檔
 - 每筆要有一個 http(s) `source_url`
 - `brand` + `model` 不可重複
 - `notes` 可省略
@@ -60,6 +69,7 @@ python3 -m http.server 8000
 ```bash
 python3 scripts/validate_phones.py
 python3 scripts/validate_phones.py --self-test
+node --test scripts/bracket.test.mjs
 ```
 
 驗證失敗時請把訊息留在 pull request，不要直接改研究資料的數值。

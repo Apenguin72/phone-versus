@@ -17,3 +17,5 @@ jobs:
           python-version: "3.12"
       - name: Validate data/phones.json
         run: python3 scripts/validate_phones.py --self-test
+      - name: Bracket rules
+        run: node --test scripts/bracket.test.mjs

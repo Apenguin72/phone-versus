@@ -1,3 +1,18 @@
+import {
+  createTournament,
+  currentMatch,
+  drawEntrants,
+  isRestorable,
+  pickWinner,
+  podium,
+  progress,
+  sizeOptions,
+  undo,
+} from "./bracket.js";
+
+const STORAGE_KEY = "phone-versus-tournament-v1";
+const PICK_LOCK_MS = 450;
+
 const BRANDS = [
   ["", "全部品牌"],
   ["Apple", "Apple（蘋果）"],
@@ -16,6 +31,11 @@ const SOURCE_LABEL = {
   regulatory: "法規文件",
 };
 
+const BATTERY_SOURCE_LABEL = {
+  filing: "申報",
+  press: "報導",
+};
+
 const picker = {
   a: { brand: "", query: "", slug: "" },
   b: { brand: "", query: "", slug: "" },
@@ -23,26 +43,36 @@ const picker = {
 
 let phones = [];
 let bySlug = new Map();
+let tournament = null;
+let preview = { size: 16, entrants: [] };
+let poolLimit = null;
+let pickLock = false;
+let compareReady = false;
 
-const els = {
-  loading: document.getElementById("loading"),
-  error: document.getElementById("error"),
-  app: document.getElementById("app"),
-  workspace: document.getElementById("workspace"),
-  empty: document.getElementById("empty"),
-  filterEmpty: document.getElementById("filter-empty"),
-  same: document.getElementById("same"),
-  compareWrap: document.getElementById("compare-wrap"),
-  coreOnly: document.getElementById("core-only"),
-  scopeCount: document.getElementById("scope-count"),
-  tbody: document.querySelector("#compare tbody"),
-  headA: document.getElementById("head-a"),
-  headB: document.getElementById("head-b"),
-};
+const els = {};
 
 init();
 
 async function init() {
+  Object.assign(els, {
+    loading: document.getElementById("loading"),
+    error: document.getElementById("error"),
+    app: document.getElementById("app"),
+    empty: document.getElementById("empty"),
+    start: document.getElementById("view-start"),
+    play: document.getElementById("view-play"),
+    compare: document.getElementById("view-compare"),
+    workspace: document.getElementById("workspace"),
+    filterEmpty: document.getElementById("filter-empty"),
+    same: document.getElementById("same"),
+    compareWrap: document.getElementById("compare-wrap"),
+    coreOnly: document.getElementById("core-only"),
+    scopeCount: document.getElementById("scope-count"),
+    tbody: document.querySelector("#compare tbody"),
+    headA: document.getElementById("head-a"),
+    headB: document.getElementById("head-b"),
+  });
+
   try {
     const response = await fetch("data/phones.json");
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -58,11 +88,35 @@ async function init() {
   els.loading.hidden = true;
   els.app.hidden = false;
   if (!phones.length) {
-    els.workspace.hidden = true;
+    els.start.hidden = true;
+    els.play.hidden = true;
+    els.compare.hidden = true;
     els.empty.hidden = false;
     return;
   }
 
+  setupCompare();
+  setupTournament();
+  window.addEventListener("popstate", () => renderRoute());
+  if (!history.state) {
+    const view = viewFromLocation();
+    history.replaceState({ view }, "", hashFor(view));
+  }
+  restoreTournament();
+  if (viewFromLocation() === "play" && !tournament) {
+    history.replaceState({ view: "start" }, "", "#/");
+  }
+  ensurePreview();
+  renderRoute();
+}
+
+function showError(message) {
+  els.loading.hidden = true;
+  els.error.hidden = false;
+  els.error.textContent = message;
+}
+
+function setupCompare() {
   fillBrandSelect(document.getElementById("brand-a"));
   fillBrandSelect(document.getElementById("brand-b"));
   bindPicker("a");
@@ -70,12 +124,406 @@ async function init() {
   els.coreOnly.addEventListener("change", () => refresh());
   chooseDefaults();
   refresh();
+  compareReady = true;
 }
 
-function showError(message) {
-  els.loading.hidden = true;
-  els.error.hidden = false;
-  els.error.textContent = message;
+function setupTournament() {
+  document.getElementById("tab-play").addEventListener("click", () => {
+    navigate(tournament ? "play" : "start");
+  });
+  document.getElementById("tab-compare").addEventListener("click", () => navigate("compare"));
+  document.getElementById("reshuffle").addEventListener("click", () => reshuffle());
+  document.getElementById("start-game").addEventListener("click", () => startGame());
+  document.getElementById("continue-game").addEventListener("click", () => navigate("play"));
+  document.getElementById("undo").addEventListener("click", () => {
+    if (!tournament) return;
+    tournament = undo(tournament);
+    saveTournament();
+    renderPlay();
+  });
+}
+
+function viewFromLocation() {
+  const hash = location.hash || "#/";
+  if (hash.startsWith("#/compare")) return "compare";
+  if (hash.startsWith("#/play")) return "play";
+  return "start";
+}
+
+function hashFor(view) {
+  if (view === "compare") return "#/compare";
+  if (view === "play") return "#/play";
+  return "#/";
+}
+
+function navigate(view) {
+  const hash = hashFor(view);
+  if ((location.hash || "#/") === hash && history.state?.view === view) {
+    renderRoute();
+    return;
+  }
+  history.pushState({ view }, "", hash);
+  renderRoute();
+}
+
+function renderRoute() {
+  const view = history.state?.view || viewFromLocation();
+  els.start.hidden = view !== "start";
+  els.play.hidden = view !== "play";
+  els.compare.hidden = view !== "compare";
+  document.getElementById("tab-play").setAttribute("aria-current", view === "compare" ? "false" : "page");
+  document.getElementById("tab-compare").setAttribute("aria-current", view === "compare" ? "page" : "false");
+  if (view === "start") renderStart();
+  if (view === "play") renderPlay();
+}
+
+function coreSlugList() {
+  const slugs = phones.filter((phone) => phone.core === true).map(slugOf);
+  const limited = poolLimit == null ? slugs : slugs.slice(0, poolLimit);
+  return limited;
+}
+
+function ensurePreview() {
+  const pool = coreSlugList();
+  const options = sizeOptions(pool.length);
+  const current = options.find((item) => item.size === preview.size && item.enabled);
+  const fallback = options.find((item) => item.enabled);
+  preview.size = (current || fallback)?.size || 16;
+  if (!current && !fallback) {
+    preview.entrants = [];
+    return;
+  }
+  if (preview.entrants.length !== preview.size) reshuffle();
+}
+
+function reshuffle() {
+  const pool = coreSlugList();
+  const option = sizeOptions(pool.length).find((item) => item.size === preview.size);
+  if (!option?.enabled) {
+    preview.entrants = [];
+    renderStart();
+    return;
+  }
+  preview.entrants = drawEntrants(pool, preview.size, cryptoRandom);
+  renderStart();
+}
+
+function startGame() {
+  const pool = coreSlugList();
+  const option = sizeOptions(pool.length).find((item) => item.size === preview.size);
+  if (!option?.enabled || preview.entrants.length !== preview.size) return;
+  tournament = createTournament(preview.entrants);
+  pickLock = false;
+  saveTournament();
+  navigate("play");
+}
+
+function renderStart() {
+  const pool = coreSlugList();
+  const options = sizeOptions(pool.length);
+  const pickerEl = document.getElementById("size-picker");
+  pickerEl.replaceChildren();
+  for (const option of options) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "size-button";
+    button.dataset.size = String(option.size);
+    button.textContent = `${option.size} 強`;
+    button.setAttribute("aria-pressed", option.size === preview.size ? "true" : "false");
+    button.disabled = !option.enabled;
+    if (!option.enabled) button.title = option.message;
+    button.addEventListener("click", () => {
+      if (!option.enabled) return;
+      preview.size = option.size;
+      preview.entrants = [];
+      reshuffle();
+    });
+    pickerEl.append(button);
+  }
+  const warn = document.getElementById("size-warn");
+  const blocked = options.filter((option) => !option.enabled);
+  warn.hidden = blocked.length === 0;
+  warn.textContent = blocked.map((option) => option.message).join(" ");
+  const canStart = preview.entrants.length === preview.size && options.some((option) => option.size === preview.size && option.enabled);
+  document.getElementById("start-game").disabled = !canStart;
+  document.getElementById("reshuffle").disabled = !canStart;
+  const list = document.getElementById("draw-list");
+  list.replaceChildren();
+  for (const slug of preview.entrants) {
+    const phone = bySlug.get(slug);
+    const item = document.createElement("li");
+    item.textContent = phone ? `${phone.brand} ${phone.model}` : slug;
+    list.append(item);
+  }
+  const continueRow = document.getElementById("continue-row");
+  continueRow.hidden = !tournament;
+  document.getElementById("continue-game").textContent = tournament?.phase === "done" ? "查看結果" : "繼續比賽";
+  document.getElementById("replace-note").hidden = !(tournament && tournament.phase !== "done");
+}
+
+function renderPlay() {
+  const undoButton = document.getElementById("undo");
+  const board = document.getElementById("match-board");
+  const podiumEl = document.getElementById("podium");
+  const roundTitle = document.getElementById("round-name");
+  const progressEl = document.getElementById("progress");
+  if (!tournament) {
+    roundTitle.textContent = "沒有進行中的比賽";
+    progressEl.textContent = "";
+    board.replaceChildren();
+    podiumEl.hidden = true;
+    undoButton.disabled = true;
+    return;
+  }
+  undoButton.disabled = tournament.history.length === 0;
+  if (tournament.phase === "done") {
+    roundTitle.textContent = "最終名次";
+    progressEl.textContent = "冠軍、亞軍與季軍";
+    board.hidden = true;
+    board.replaceChildren();
+    renderPodium(podiumEl);
+    podiumEl.hidden = false;
+    return;
+  }
+  board.hidden = false;
+  podiumEl.hidden = true;
+  podiumEl.replaceChildren();
+  const info = progress(tournament);
+  roundTitle.textContent = info.roundName;
+  progressEl.textContent = `第 ${info.index} 場，共 ${info.total} 場`;
+  const match = currentMatch(tournament);
+  board.replaceChildren();
+  board.classList.toggle("is-locked", pickLock);
+  if (!match?.a || !match?.b || match.a === match.b) {
+    const problem = document.createElement("p");
+    problem.className = "empty";
+    problem.textContent = "這一場的對戰資料不完整。";
+    board.append(problem);
+    return;
+  }
+  board.append(renderCard(bySlug.get(match.a), "a"), renderCard(bySlug.get(match.b), "b"));
+}
+
+function renderCard(phone, side) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "match-card";
+  button.dataset.side = side;
+  if (!phone) {
+    button.disabled = true;
+    button.textContent = "找不到這支手機";
+    return button;
+  }
+  const name = `${phone.brand} ${phone.model}`;
+  button.dataset.slug = slugOf(phone);
+  button.setAttribute("aria-label", `選擇 ${name}`);
+  button.append(renderPhoto(phone));
+  const title = document.createElement("h3");
+  title.className = "card-title";
+  title.textContent = name;
+  button.append(title, renderSpecList(phone));
+  button.addEventListener("click", () => onPick(slugOf(phone)));
+  return button;
+}
+
+function onPick(slug) {
+  if (pickLock || !tournament || tournament.phase === "done") return;
+  const match = currentMatch(tournament);
+  if (!match || match.winner || (slug !== match.a && slug !== match.b)) return;
+  pickLock = true;
+  document.getElementById("match-board")?.classList.add("is-locked");
+  const next = pickWinner(tournament, slug);
+  if (next === tournament) {
+    pickLock = false;
+    document.getElementById("match-board")?.classList.remove("is-locked");
+    return;
+  }
+  tournament = next;
+  saveTournament();
+  renderPlay();
+  window.setTimeout(() => {
+    pickLock = false;
+    document.getElementById("match-board")?.classList.remove("is-locked");
+  }, PICK_LOCK_MS);
+}
+
+function renderPodium(container) {
+  const places = podium(tournament);
+  container.replaceChildren();
+  const list = document.createElement("ol");
+  list.className = "podium-list";
+  list.append(
+    renderPlace(1, "冠軍", places?.champion),
+    renderPlace(2, "亞軍", places?.runnerUp),
+    renderPlace(3, "季軍", places?.third),
+  );
+  const again = document.createElement("button");
+  again.type = "button";
+  again.className = "primary";
+  again.id = "play-again";
+  again.textContent = "再玩一次";
+  again.addEventListener("click", () => {
+    preview.entrants = [];
+    ensurePreview();
+    navigate("start");
+  });
+  container.append(list, again);
+}
+
+function renderPlace(place, label, slug) {
+  const item = document.createElement("li");
+  item.className = `place place-${place}`;
+  item.dataset.place = String(place);
+  if (slug) item.dataset.slug = slug;
+  const rank = document.createElement("p");
+  rank.className = "rank";
+  rank.textContent = String(place);
+  const heading = document.createElement("h3");
+  heading.textContent = label;
+  item.append(rank);
+  const phone = slug ? bySlug.get(slug) : null;
+  if (!phone) {
+    item.append(heading);
+    return item;
+  }
+  const name = document.createElement("p");
+  name.className = "card-title";
+  name.textContent = `${phone.brand} ${phone.model}`;
+  item.append(renderPhoto(phone), heading, name);
+  return item;
+}
+
+function renderPhoto(phone) {
+  const frame = document.createElement("div");
+  frame.className = "photo";
+  const showPlaceholder = () => {
+    frame.dataset.photo = "placeholder";
+    frame.replaceChildren();
+    const brand = document.createElement("p");
+    brand.className = "photo-brand";
+    brand.textContent = phone.brand;
+    const model = document.createElement("p");
+    model.className = "photo-model";
+    model.textContent = phone.model;
+    frame.append(brand, model);
+    appendImageCredit(frame, phone);
+  };
+  if (!isRemoteImage(phone.image_url)) {
+    showPlaceholder();
+    return frame;
+  }
+  frame.dataset.photo = "remote";
+  const image = document.createElement("img");
+  image.alt = `${phone.brand} ${phone.model}`;
+  image.referrerPolicy = "no-referrer";
+  image.loading = "lazy";
+  image.addEventListener("error", showPlaceholder, { once: true });
+  image.src = phone.image_url;
+  frame.append(image);
+  appendImageCredit(frame, phone);
+  return frame;
+}
+
+function appendImageCredit(frame, phone) {
+  const parts = [phone.image_note, phone.image_source].filter((value) => hasText(value));
+  if (!parts.length) return;
+  const credit = document.createElement("p");
+  credit.className = "photo-credit";
+  credit.textContent = parts.map((value) => value.trim()).join(" · ");
+  frame.append(credit);
+}
+
+function isRemoteImage(url) {
+  return typeof url === "string" && /^https?:\/\//i.test(url);
+}
+
+function renderSpecList(phone) {
+  const list = document.createElement("dl");
+  list.className = "spec-list";
+  addSpec(list, "晶片", chipSpec(phone));
+  addSpec(list, "電池", batterySpec(phone));
+  addSpec(list, "重量", valueLine(phone, "weight_g", formatWeight));
+  addSpec(list, "螢幕", screenCell(phone));
+  addSpec(list, "刷新率", refreshCell(phone));
+  addSpec(list, "系統", valueLine(phone, "os_at_launch", (value) => value));
+  return list;
+}
+
+function addSpec(list, label, node) {
+  const row = document.createElement("div");
+  const term = document.createElement("dt");
+  term.textContent = label;
+  const detail = document.createElement("dd");
+  detail.append(node);
+  row.append(term, detail);
+  list.append(row);
+}
+
+function chipSpec(phone) {
+  const wrap = document.createElement("div");
+  wrap.className = "stack";
+  wrap.append(valueLine(phone, "chip", (value) => value));
+  const variants = variantLines(phone.chip_variants);
+  if (!variants.length) return wrap;
+  const note = document.createElement("div");
+  note.className = "subnote";
+  for (const variant of variants) {
+    const line = document.createElement("span");
+    line.className = "variant";
+    line.textContent = variant;
+    note.append(line);
+  }
+  wrap.append(note);
+  return wrap;
+}
+
+function batterySpec(phone) {
+  const wrap = document.createElement("div");
+  wrap.className = "stack";
+  const line = valueLine(phone, "battery_mAh", (value) => `${formatNumber(value)} mAh`);
+  if (BATTERY_SOURCE_LABEL[phone.battery_source_type]) {
+    const source = document.createElement("span");
+    source.className = "subnote";
+    source.textContent = BATTERY_SOURCE_LABEL[phone.battery_source_type];
+    line.append(source);
+  }
+  wrap.append(line);
+  if (phone.official_endurance_hours != null) {
+    const hours = document.createElement("p");
+    hours.className = "endurance";
+    hours.textContent = `官方續航 ${formatNumber(phone.official_endurance_hours)} 小時（僅供參考）`;
+    wrap.append(hours);
+  }
+  return wrap;
+}
+
+function saveTournament() {
+  if (!tournament) {
+    localStorage.removeItem(STORAGE_KEY);
+    return;
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(tournament));
+}
+
+function restoreTournament() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (!isRestorable(saved, new Set(bySlug.keys()))) {
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+    tournament = saved;
+  } catch {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+}
+
+function cryptoRandom() {
+  const buffer = new Uint32Array(1);
+  crypto.getRandomValues(buffer);
+  return buffer[0] / 4294967296;
 }
 
 function bindPicker(side) {
@@ -115,6 +563,7 @@ function chooseDefaults() {
 }
 
 function refresh() {
+  if (!compareReady && !els.coreOnly) return;
   const listA = visiblePhones("a");
   const listB = visiblePhones("b");
   picker.a.slug = fillPhoneSelect("a", listA);
@@ -305,8 +754,7 @@ function batterySourceLink(phone) {
   link.href = url;
   link.target = "_blank";
   link.rel = "noopener noreferrer";
-  const labels = { filing: "申報", press: "報導" };
-  link.textContent = labels[phone.battery_source_type] || "電池來源";
+  link.textContent = BATTERY_SOURCE_LABEL[phone.battery_source_type] || "電池來源";
   return link;
 }
 
@@ -472,3 +920,29 @@ function appendLinkedText(parent, text) {
   }
   if (last < text.length) parent.append(document.createTextNode(text.slice(last)));
 }
+
+globalThis.__phoneVersus = {
+  get tournament() {
+    return tournament;
+  },
+  get preview() {
+    return preview;
+  },
+  get phonesBySlug() {
+    return bySlug;
+  },
+  slugOf,
+  setPoolLimit(limit) {
+    poolLimit = limit;
+    preview.entrants = [];
+    ensurePreview();
+    renderStart();
+  },
+  clearPoolLimit() {
+    poolLimit = null;
+    preview.entrants = [];
+    ensurePreview();
+    renderStart();
+  },
+  renderPlay,
+};
