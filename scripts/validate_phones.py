@@ -131,11 +131,12 @@ def validate_phone(phone: dict, schema: dict) -> list[str]:
         if parsed_battery.scheme not in ("http", "https") or not parsed_battery.netloc:
             errors.append("battery_source_url must be an http(s) URL with a host")
 
-    image_url = phone.get("image_url")
-    if isinstance(image_url, str) and image_url:
-        parsed_image = urlparse(image_url)
-        if parsed_image.scheme not in ("http", "https") or not parsed_image.netloc:
-            errors.append("image_url must be a remote http(s) URL, not a local image file")
+    for image_url_field in ("image_url", "image_page_url"):
+        image_url = phone.get(image_url_field)
+        if isinstance(image_url, str) and image_url:
+            parsed_image = urlparse(image_url)
+            if parsed_image.scheme not in ("http", "https") or not parsed_image.netloc:
+                errors.append(f"{image_url_field} must be a remote http(s) URL, not a local image file")
     for image_field in ("image_note", "image_source"):
         if image_field in phone and phone[image_field] is not None and not isinstance(phone[image_field], str):
             errors.append(f"{image_field} must be a string when present")
@@ -381,18 +382,24 @@ def self_test(schema: dict) -> int:
         [fixture(
             model="Remote Photo",
             image_url="https://example.com/phones/remote.jpg",
+            image_page_url="https://example.com/phones/remote",
             image_note="官方產品圖",
-            image_source="https://example.com/press",
+            image_source="official",
         )],
     )
     ok &= expect_ok(
         "null image fields",
-        [fixture(model="No Photo", image_url=None, image_note=None, image_source=None)],
+        [fixture(model="No Photo", image_url=None, image_page_url=None, image_note=None, image_source=None)],
     )
     ok &= expect_fail(
         "local image file",
         [fixture(model="Local Photo", image_url="photos/phone.jpg")],
         "image_url",
+    )
+    ok &= expect_fail(
+        "local image page",
+        [fixture(model="Local Page", image_page_url="photos/page.html")],
+        "image_page_url",
     )
     ok &= expect_ok("cutoff day", [fixture(model="Cutoff", announce_date="2023-11-01", year=2023)])
     ok &= expect_fail(

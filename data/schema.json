@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Phone",
-  "description": "2023-11-01（含）以後全球首發的非摺疊直板機。品牌限 Apple、Samsung、Google、Xiaomi、Huawei、OPPO。續航比較只用 battery_mAh；official_endurance_hours 只供顯示，可為 null，且不在 field_status 裡。規格欄位可為 null，但僅限 field_status 標成 unconfirmed。core 為 true 的機型屬於較小的主力清單。battery_source_*、chip_variants、refresh_note、image_url、image_note、image_source 都可省略。照片只放遠端網址，不把圖片檔放進這個倉庫。",
+  "description": "2023-11-01（含）以後全球首發的非摺疊直板機。品牌限 Apple、Samsung、Google、Xiaomi、Huawei、OPPO。續航比較只用 battery_mAh；official_endurance_hours 只供顯示，可為 null，且不在 field_status 裡。規格欄位可為 null，但僅限 field_status 標成 unconfirmed。core 為 true 的機型屬於較小的主力清單。battery_source_*、chip_variants、refresh_note、image_url、image_page_url、image_note、image_source 都可省略。照片只放遠端網址，不把圖片檔放進這個倉庫。",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -148,6 +148,11 @@
       "type": ["string", "null"],
       "pattern": "^https?://\\S+$",
       "description": "遠端產品照片網址。可省略或 null。不要提交圖片檔，也不要填本機路徑。"
+    },
+    "image_page_url": {
+      "type": ["string", "null"],
+      "pattern": "^https?://\\S+$",
+      "description": "照片所在頁面的遠端網址。可省略或 null。不是圖片檔。"
     },
     "image_note": {
       "type": ["string", "null"],

@@ -59,7 +59,7 @@ python3 -m http.server 8000
 - `battery_source_url` 與 `battery_source_type`（`filing` 或 `press`）可省略，或成對出現，也可同為 null
 - `chip_variants` 可省略，可以是字串或字串陣列
 - `refresh_note` 可省略或 null
-- `image_url` 可省略或 null，只能是 http(s) 遠端網址。`image_note` 與 `image_source` 是選填文字。不要提交圖片檔
+- `image_url` 與 `image_page_url` 可省略或 null，只能是 http(s) 遠端網址。`image_note` 與 `image_source` 是選填文字。不要提交圖片檔
 - 每筆要有一個 http(s) `source_url`
 - `brand` + `model` 不可重複
 - `notes` 可省略
