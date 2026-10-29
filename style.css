@@ -434,7 +434,7 @@ button:disabled {
 }
 
 .spec-list { margin: 0; display: grid; gap: 6px; }
-.spec-list div { display: grid; grid-template-columns: 3.2rem 1fr; gap: 6px; align-items: start; }
+.spec-list > div { display: grid; grid-template-columns: 3.2rem 1fr; gap: 6px; align-items: start; }
 .spec-list dt { margin: 0; color: var(--muted); font-size: 0.8rem; }
 .spec-list dd { margin: 0; min-width: 0; }
 

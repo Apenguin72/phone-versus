@@ -302,6 +302,7 @@ function renderPlay() {
     return;
   }
   board.append(renderCard(bySlug.get(match.a), "a"), renderCard(bySlug.get(match.b), "b"));
+  preloadPhoneImages(phonesForMatch(nextMatch(tournament)));
 }
 
 function renderCard(phone, side) {
@@ -393,6 +394,8 @@ function renderPlace(place, label, slug) {
   return item;
 }
 
+const warmedImages = new Set();
+
 function renderPhoto(phone) {
   const frame = document.createElement("div");
   frame.className = "photo";
@@ -416,7 +419,8 @@ function renderPhoto(phone) {
   const image = document.createElement("img");
   image.alt = `${phone.brand} ${phone.model}`;
   image.referrerPolicy = "no-referrer";
-  image.loading = "lazy";
+  image.loading = "eager";
+  image.fetchPriority = "high";
   image.addEventListener("error", showPlaceholder, { once: true });
   image.src = phone.image_url;
   frame.append(image);
@@ -425,12 +429,58 @@ function renderPhoto(phone) {
 }
 
 function appendImageCredit(frame, phone) {
-  const parts = [phone.image_note, phone.image_source].filter((value) => hasText(value));
-  if (!parts.length) return;
+  const label = imageSourceLabel(phone.image_source);
+  if (!label) return;
   const credit = document.createElement("p");
   credit.className = "photo-credit";
-  credit.textContent = parts.map((value) => value.trim()).join(" · ");
+  credit.textContent = label;
   frame.append(credit);
+}
+
+function imageSourceLabel(source) {
+  if (!hasText(source)) return "";
+  const raw = source.trim();
+  return SOURCE_LABEL[raw] || SOURCE_LABEL[raw.toLowerCase()] || raw;
+}
+
+function nextMatch(state) {
+  if (!state || state.phase !== "main") return null;
+  const round = state.rounds[state.round];
+  if (state.match + 1 < round.length) return round[state.match + 1];
+  if (state.round + 1 < state.rounds.length) {
+    const upcoming = state.rounds[state.round + 1][0];
+    if (upcoming?.a && upcoming?.b) return upcoming;
+    return null;
+  }
+  if (state.third?.a && state.third?.b) return state.third;
+  return null;
+}
+
+function phonesForMatch(match) {
+  if (!match?.a || !match?.b) return [];
+  return [bySlug.get(match.a), bySlug.get(match.b)].filter(Boolean);
+}
+
+function preloadPhoneImages(phonesToWarm) {
+  document.querySelectorAll("link[data-preload-phone]").forEach((node) => node.remove());
+  for (const phone of phonesToWarm) {
+    if (!isRemoteImage(phone.image_url)) continue;
+    const url = phone.image_url;
+    if (!warmedImages.has(url)) {
+      const image = new Image();
+      image.referrerPolicy = "no-referrer";
+      image.decoding = "async";
+      image.src = url;
+      warmedImages.add(url);
+    }
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "image";
+    link.href = url;
+    link.referrerPolicy = "no-referrer";
+    link.dataset.preloadPhone = "true";
+    document.head.append(link);
+  }
 }
 
 function isRemoteImage(url) {
