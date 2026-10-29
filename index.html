@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>手機二選一</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <meta name="description" content="選兩支手機，比較晶片、電池容量、重量、螢幕、刷新率與作業系統。">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <p class="eyebrow">直板機規格對照</p>
+    <h1>手機二選一</h1>
+    <p class="lede">選兩支手機，並排看晶片、電池容量、重量、螢幕、刷新率，以及發表時的作業系統。</p>
+    <p class="scope">Apple、Samsung、Google、Xiaomi、Huawei、OPPO · 2023-11-01 起全球首發</p>
+  </header>
+  <main>
+    <p id="loading" class="status">正在載入手機資料…</p>
+    <p id="error" class="status error" hidden></p>
+    <div id="app" hidden>
+      <div id="workspace">
+        <div class="toolbar">
+          <label class="toggle">
+            <input id="core-only" type="checkbox" checked>
+            <span>只看主力機型</span>
+          </label>
+          <p id="scope-count" class="scope-count"></p>
+        </div>
+        <div class="pickers">
+          <fieldset class="picker">
+            <legend>手機 A</legend>
+            <label for="brand-a">品牌</label>
+            <select id="brand-a"></select>
+            <label for="search-a">搜尋</label>
+            <input id="search-a" type="search" placeholder="搜尋型號，例如 iPhone 16" autocomplete="off" enterkeyhint="search">
+            <label for="phone-a">機型</label>
+            <select id="phone-a"></select>
+            <p id="count-a" class="match-count"></p>
+          </fieldset>
+          <p class="vs" aria-hidden="true"><span>VS</span></p>
+          <fieldset class="picker">
+            <legend>手機 B</legend>
+            <label for="brand-b">品牌</label>
+            <select id="brand-b"></select>
+            <label for="search-b">搜尋</label>
+            <input id="search-b" type="search" placeholder="搜尋型號，例如 Galaxy S26" autocomplete="off" enterkeyhint="search">
+            <label for="phone-b">機型</label>
+            <select id="phone-b"></select>
+            <p id="count-b" class="match-count"></p>
+          </fieldset>
+        </div>
+        <p id="filter-empty" class="empty" hidden>這組篩選沒有可比較的手機。請放寬品牌或搜尋條件。</p>
+        <p id="same" class="note" hidden>兩邊目前是同一支手機，數值相同，所以不會標示較優。</p>
+        <div id="compare-wrap" class="compare-wrap">
+          <table id="compare">
+            <caption class="sr-only">兩支手機的規格比較</caption>
+            <thead>
+              <tr>
+                <th scope="col">規格</th>
+                <th scope="col" id="head-a"></th>
+                <th scope="col" id="head-b"></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <p id="empty" class="empty" hidden>資料庫還沒有手機資料。比較表會在 <code>data/phones.json</code> 有機型後出現。</p>
+      <p class="footnote">電池容量較高、重量較輕、刷新率較高的一邊會標示較優。官方續航時數、電池容量的申報或報導連結、地區晶片與刷新率補充都只供參考。刷新率以一般最高值比較。任一邊是未確認時，該列不標示較優。推定值會標示「推定」，仍可比較。</p>
+    </div>
+  </main>
+  <script src="app.js"></script>
+  <noscript><p class="status">這個頁面需要 JavaScript 才能比較手機。</p></noscript>
+</body>
+</html>
