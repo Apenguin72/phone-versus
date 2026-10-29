@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>手機二選一</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <meta name="description" content="從主力手機隨機抽籤，進行二選一淘汰賽，也可以自由比較兩支手機。">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="title-row">
+      <div>
+        <p class="eyebrow">直板機淘汰賽</p>
+        <h1>手機二選一</h1>
+      </div>
+      <nav class="tabs" aria-label="功能">
+        <button type="button" id="tab-play">淘汰賽</button>
+        <button type="button" id="tab-compare">自由比較</button>
+      </nav>
+    </div>
+  </header>
+  <main>
+    <p id="loading" class="status">正在載入手機資料…</p>
+    <p id="error" class="status error" hidden></p>
+    <div id="app" hidden>
+      <section id="view-start">
+        <h2>二選一淘汰賽</h2>
+        <p class="lede">從主力機型隨機抽出 16、32 或 64 支。每場點選要留下的一支，直到冠軍。準決賽的兩名落敗者再比一場季軍戰。</p>
+        <div id="size-picker" class="size-picker" role="group" aria-label="比賽規模"></div>
+        <p id="size-warn" class="warn" hidden></p>
+        <div class="row-actions">
+          <button type="button" id="reshuffle">重新抽</button>
+          <button type="button" id="start-game" class="primary">開始比賽</button>
+        </div>
+        <p id="continue-row" hidden>
+          <button type="button" id="continue-game">繼續比賽</button>
+        </p>
+        <p id="replace-note" class="note" hidden>開始新的比賽會取代尚未結束的這一場。</p>
+        <h3 id="draw-heading">這一抽</h3>
+        <ul id="draw-list" class="draw-list" aria-labelledby="draw-heading"></ul>
+      </section>
+
+      <section id="view-play" hidden>
+        <div class="round-bar">
+          <div>
+            <h2 id="round-name"></h2>
+            <p id="progress"></p>
+          </div>
+          <button type="button" id="undo">上一步</button>
+        </div>
+        <div id="match-board" class="match-board"></div>
+        <div id="podium" class="podium" hidden></div>
+        <p class="footnote">點一張卡片，那支手機進入下一輪。未確認與推定只標示資料狀態，不代替你的選擇。重新整理或按上一頁後，這一場仍會留著。</p>
+      </section>
+
+      <section id="view-compare" hidden>
+        <h2>自由比較</h2>
+        <p class="lede">選兩支手機，並排看晶片、電池容量、重量、螢幕、刷新率，以及發表時的作業系統。</p>
+        <p class="scope">Apple、Samsung、Google、Xiaomi、Huawei、OPPO · 2023-11-01 起全球首發</p>
+        <div id="workspace">
+          <div class="toolbar">
+            <label class="toggle">
+              <input id="core-only" type="checkbox" checked>
+              <span>只看主力機型</span>
+            </label>
+            <p id="scope-count" class="scope-count"></p>
+          </div>
+          <div class="pickers">
+            <fieldset class="picker">
+              <legend>手機 A</legend>
+              <label for="brand-a">品牌</label>
+              <select id="brand-a"></select>
+              <label for="search-a">搜尋</label>
+              <input id="search-a" type="search" placeholder="搜尋型號，例如 iPhone 16" autocomplete="off" enterkeyhint="search">
+              <label for="phone-a">機型</label>
+              <select id="phone-a"></select>
+              <p id="count-a" class="match-count"></p>
+            </fieldset>
+            <p class="vs" aria-hidden="true"><span>VS</span></p>
+            <fieldset class="picker">
+              <legend>手機 B</legend>
+              <label for="brand-b">品牌</label>
+              <select id="brand-b"></select>
+              <label for="search-b">搜尋</label>
+              <input id="search-b" type="search" placeholder="搜尋型號，例如 Galaxy S26" autocomplete="off" enterkeyhint="search">
+              <label for="phone-b">機型</label>
+              <select id="phone-b"></select>
+              <p id="count-b" class="match-count"></p>
+            </fieldset>
+          </div>
+          <p id="filter-empty" class="empty" hidden>這組篩選沒有可比較的手機。請放寬品牌或搜尋條件。</p>
+          <p id="same" class="note" hidden>兩邊目前是同一支手機，數值相同，所以不會標示較優。</p>
+          <div id="compare-wrap" class="compare-wrap">
+            <table id="compare">
+              <caption class="sr-only">兩支手機的規格比較</caption>
+              <thead>
+                <tr>
+                  <th scope="col">規格</th>
+                  <th scope="col" id="head-a"></th>
+                  <th scope="col" id="head-b"></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <p class="footnote">電池容量較高、重量較輕、刷新率較高的一邊會標示較優。官方續航時數、電池容量的申報或報導連結、地區晶片與刷新率補充都只供參考。刷新率以一般最高值比較。任一邊是未確認時，該列不標示較優。推定值會標示「推定」，仍可比較。</p>
+      </section>
+      <p id="empty" class="empty" hidden>資料庫還沒有手機資料。比賽與比較會在 <code>data/phones.json</code> 有機型後出現。</p>
+    </div>
+  </main>
+  <script type="module" src="app.js"></script>
+  <noscript><p class="status">這個頁面需要 JavaScript 才能進行淘汰賽與比較。</p></noscript>
+</body>
+</html>

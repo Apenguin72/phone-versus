@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Phone",
+  "description": "2023-11-01（含）以後全球首發的非摺疊直板機。品牌限 Apple、Samsung、Google、Xiaomi、Huawei、OPPO。續航比較只用 battery_mAh；official_endurance_hours 只供顯示，可為 null，且不在 field_status 裡。規格欄位可為 null，但僅限 field_status 標成 unconfirmed。core 為 true 的機型屬於較小的主力清單。battery_source_*、chip_variants、refresh_note、image_url、image_page_url、image_note、image_source 都可省略。照片只放遠端網址，不把圖片檔放進這個倉庫。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "brand",
+    "model",
+    "core",
+    "announce_date",
+    "year",
+    "chip",
+    "battery_mAh",
+    "weight_g",
+    "screen_inch",
+    "resolution",
+    "refresh_hz",
+    "os_at_launch",
+    "official_endurance_hours",
+    "source_url",
+    "source_type",
+    "checked_date",
+    "field_status"
+  ],
+  "properties": {
+    "brand": {
+      "enum": ["Apple", "Samsung", "Google", "Xiaomi", "Huawei", "OPPO"]
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "description": "與 brand 組成唯一鍵。沒有 id；網站用 brand+model 產生 slug。"
+    },
+    "core": {
+      "type": "boolean",
+      "description": "true 表示主力機型。網站預設只顯示 core 為 true 的手機。"
+    },
+    "announce_date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "全球首發日（YYYY-MM-DD），須 >= 2023-11-01。"
+    },
+    "year": {
+      "type": "integer",
+      "description": "須與 announce_date 的年份相同。"
+    },
+    "chip": {
+      "type": ["string", "null"],
+      "description": "處理器。null 只允許 field_status.chip 為 unconfirmed。"
+    },
+    "chip_variants": {
+      "description": "地區版本的晶片。可省略。可以是一個字串，或字串陣列；空陣列表示沒有其他版本。",
+      "oneOf": [
+        {"type": "string", "minLength": 1},
+        {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        }
+      ]
+    },
+    "battery_mAh": {
+      "type": ["integer", "null"],
+      "description": "電池容量，單位 mAh。比較時數值較高者較優。未確認時不比較。null 只允許 field_status 為 unconfirmed。"
+    },
+    "weight_g": {
+      "type": ["number", "null"],
+      "description": "重量，單位公克。比較時數值較低者較優。"
+    },
+    "screen_inch": {
+      "type": ["number", "null"],
+      "description": "螢幕尺寸，單位吋。與 resolution 一起顯示，不比較優劣。"
+    },
+    "resolution": {
+      "type": ["string", "null"],
+      "pattern": "^\\d{3,5}x\\d{3,5}$",
+      "description": "螢幕解析度，例如 2868x1320。"
+    },
+    "refresh_hz": {
+      "type": ["integer", "null"],
+      "description": "一般最高更新率，單位 Hz。比較時數值較高者較優。遊戲模式等例外寫在 refresh_note。"
+    },
+    "refresh_note": {
+      "type": ["string", "null"],
+      "description": "刷新率補充，例如只有遊戲模式才到 144 Hz。可省略或 null。不參與比較。"
+    },
+    "os_at_launch": {
+      "type": ["string", "null"],
+      "description": "發表時的作業系統。華為機型預期為 HarmonyOS（可含版本）；資料若標成其他系統且為 unconfirmed，驗證不會改寫。"
+    },
+    "official_endurance_hours": {
+      "type": ["integer", "null"],
+      "description": "官方續航時數。可為 null。只顯示，不參與比較，也不納入 field_status。"
+    },
+    "source_url": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^https?://\\S+$",
+      "description": "至少一筆來源網址。"
+    },
+    "source_type": {
+      "enum": ["official", "gsmarena", "regulatory"],
+      "description": "整機規格來源。資料使用 official 或 gsmarena。regulatory 仍接受，以相容較早的列。"
+    },
+    "battery_source_url": {
+      "type": ["string", "null"],
+      "pattern": "^https?://\\S+$",
+      "description": "電池容量的另一個來源網址。與 battery_source_type 成對，可同為 null。"
+    },
+    "battery_source_type": {
+      "type": ["string", "null"],
+      "enum": ["filing", "press", null],
+      "description": "filing 是申報或法規文件，press 是報導。可為 null。"
+    },
+    "checked_date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "核對該來源的日期。"
+    },
+    "field_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "每個規格欄位的確認狀態。confirmed 已確認、inferred 推定、unconfirmed 未確認。",
+      "required": [
+        "chip",
+        "battery_mAh",
+        "weight_g",
+        "screen_inch",
+        "resolution",
+        "refresh_hz",
+        "os_at_launch"
+      ],
+      "properties": {
+        "chip": {"enum": ["confirmed", "inferred", "unconfirmed"]},
+        "battery_mAh": {"enum": ["confirmed", "inferred", "unconfirmed"]},
+        "weight_g": {"enum": ["confirmed", "inferred", "unconfirmed"]},
+        "screen_inch": {"enum": ["confirmed", "inferred", "unconfirmed"]},
+        "resolution": {"enum": ["confirmed", "inferred", "unconfirmed"]},
+        "refresh_hz": {"enum": ["confirmed", "inferred", "unconfirmed"]},
+        "os_at_launch": {"enum": ["confirmed", "inferred", "unconfirmed"]}
+      }
+    },
+    "notes": {
+      "type": "string",
+      "description": "選填自由文字。尚未開賣、版本差異或容量出處可寫在這裡。可省略或留空。"
+    },
+    "image_url": {
+      "type": ["string", "null"],
+      "pattern": "^https?://\\S+$",
+      "description": "遠端產品照片網址。可省略或 null。不要提交圖片檔，也不要填本機路徑。"
+    },
+    "image_page_url": {
+      "type": ["string", "null"],
+      "pattern": "^https?://\\S+$",
+      "description": "照片所在頁面的遠端網址。可省略或 null。不是圖片檔。"
+    },
+    "image_note": {
+      "type": ["string", "null"],
+      "description": "照片補充說明。可省略或 null。"
+    },
+    "image_source": {
+      "type": ["string", "null"],
+      "description": "照片出處，可以是名稱或網址。可省略或 null。"
+    }
+  }
+}
