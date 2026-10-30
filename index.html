@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>手機二選一</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <meta name="description" content="從主力手機隨機抽籤，進行二選一淘汰賽，也可以自由比較兩支手機。">
+  <meta name="description" content="從 91 支直板機隨機抽籤，進行二選一淘汰賽，並看社群 Elo 排名。">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -18,6 +18,7 @@
       <nav class="tabs" aria-label="功能">
         <button type="button" id="tab-play">淘汰賽</button>
         <button type="button" id="tab-compare">自由比較</button>
+        <button type="button" id="tab-ranking">大家最喜歡</button>
       </nav>
     </div>
   </header>
@@ -27,7 +28,7 @@
     <div id="app" hidden>
       <section id="view-start">
         <h2>二選一淘汰賽</h2>
-        <p class="lede">從主力機型隨機抽出 16、32 或 64 支。每場點選要留下的一支，直到冠軍。準決賽的兩名落敗者再比一場季軍戰。</p>
+        <p class="lede">從 91 支參賽手機隨機抽出 16、32 或 64 支。每場點選要留下的一支，直到冠軍。準決賽的兩名落敗者再比一場季軍戰。</p>
         <div id="size-picker" class="size-picker" role="group" aria-label="比賽規模"></div>
         <p id="size-warn" class="warn" hidden></p>
         <div class="row-actions">
@@ -50,20 +51,20 @@
           </div>
           <button type="button" id="undo">上一步</button>
         </div>
-        <div id="match-board" class="match-board"></div>
+        <div id="match-board"></div>
         <div id="podium" class="podium" hidden></div>
-        <p class="footnote">點一張卡片，那支手機進入下一輪。未確認與推定只標示資料狀態，不代替你的選擇。重新整理或按上一頁後，這一場仍會留著。</p>
+        <p class="footnote">點一張卡片，那支手機進入下一輪。重新整理或按上一頁後，這一場仍會留著。</p>
       </section>
 
       <section id="view-compare" hidden>
         <h2>自由比較</h2>
-        <p class="lede">選兩支手機，並排看晶片、電池容量、重量、螢幕、刷新率，以及發表時的作業系統。</p>
-        <p class="scope">Apple、Samsung、Google、Xiaomi、Huawei、OPPO · 2023-11-01 起全球首發</p>
+        <p class="lede">選兩支手機，並排看單核分數、主鏡頭、電池、重量、更新率，以及發表時的作業系統。</p>
+        <p class="scope">Apple、Samsung、Google、Xiaomi、Huawei、OPPO · 91 支參賽機型</p>
         <div id="workspace">
           <div class="toolbar">
             <label class="toggle">
               <input id="core-only" type="checkbox" checked>
-              <span>只看主力機型</span>
+              <span>只看參賽機型</span>
             </label>
             <p id="scope-count" class="scope-count"></p>
           </div>
@@ -91,22 +92,18 @@
             </fieldset>
           </div>
           <p id="filter-empty" class="empty" hidden>這組篩選沒有可比較的手機。請放寬品牌或搜尋條件。</p>
-          <p id="same" class="note" hidden>兩邊目前是同一支手機，數值相同，所以不會標示較優。</p>
-          <div id="compare-wrap" class="compare-wrap">
-            <table id="compare">
-              <caption class="sr-only">兩支手機的規格比較</caption>
-              <thead>
-                <tr>
-                  <th scope="col">規格</th>
-                  <th scope="col" id="head-a"></th>
-                  <th scope="col" id="head-b"></th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
+          <p id="same" class="note" hidden>兩邊目前是同一支手機。</p>
+          <div id="compare-board"></div>
         </div>
-        <p class="footnote">電池容量較高、重量較輕、刷新率較高的一邊會標示較優。官方續航時數、電池容量的申報或報導連結、地區晶片與刷新率補充都只供參考。刷新率以一般最高值比較。任一邊是未確認時，該列不標示較優。推定值會標示「推定」，仍可比較。</p>
+        <p class="footnote">條的長度是兩邊數值相對較大者的比例。重量越輕，條越長。沒有資料時顯示待補數據。</p>
+      </section>
+
+      <section id="view-ranking" hidden>
+        <h2>大家最喜歡</h2>
+        <p class="lede">依大家打完的淘汰賽計算 Elo。每場勝方加分、敗方扣分。</p>
+        <p id="rank-status" class="status" hidden></p>
+        <div id="rank-top" class="rank-top" hidden></div>
+        <ol id="rank-list" class="rank-list" hidden></ol>
       </section>
       <p id="empty" class="empty" hidden>資料庫還沒有手機資料。比賽與比較會在 <code>data/phones.json</code> 有機型後出現。</p>
     </div>

@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+import unicodedata
 from datetime import date
 from pathlib import Path
 from urllib.parse import urlparse
@@ -17,10 +18,108 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = ROOT / "data" / "schema.json"
 DATA_PATH = ROOT / "data" / "phones.json"
+CHIP_PATH = ROOT / "data" / "chip_scores.json"
+CAMERA_PATH = ROOT / "data" / "camera_specs.json"
+IMAGE_DIR = ROOT / "images" / "phones"
 CUTOFF = date(2023, 11, 1)
-# Researched list size. main() and --self-test both reject a drift.
-EXPECTED_PHONES = 131
-EXPECTED_CORE = 104
+# Tournament field. main() and --self-test both reject a drift.
+EXPECTED_PHONES = 91
+EXPECTED_CORE = 91
+ACCENT_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
+# Exact brand|model field. Every one of these is a tournament entrant.
+EXPECTED_KEYS = {
+    "Apple|iPhone 16",
+    "Apple|iPhone 16 Plus",
+    "Apple|iPhone 16 Pro",
+    "Apple|iPhone 16 Pro Max",
+    "Apple|iPhone 16e",
+    "Apple|iPhone 17",
+    "Apple|iPhone 17 Pro",
+    "Apple|iPhone 17 Pro Max",
+    "Apple|iPhone 17e",
+    "Apple|iPhone 18 Pro",
+    "Apple|iPhone 18 Pro Max",
+    "Apple|iPhone Air",
+    "Google|Pixel 10",
+    "Google|Pixel 10 Pro",
+    "Google|Pixel 10 Pro XL",
+    "Google|Pixel 10a",
+    "Google|Pixel 11",
+    "Google|Pixel 11 Pro",
+    "Google|Pixel 11 Pro XL",
+    "Google|Pixel 8a",
+    "Google|Pixel 9",
+    "Google|Pixel 9 Pro",
+    "Google|Pixel 9 Pro XL",
+    "Google|Pixel 9a",
+    "Huawei|Mate 70",
+    "Huawei|Mate 70 Pro",
+    "Huawei|Mate 70 Pro+",
+    "Huawei|Mate 80",
+    "Huawei|Mate 80 Pro Max",
+    "Huawei|Pura 70 Pro",
+    "Huawei|Pura 70 Pro+",
+    "Huawei|Pura 70 Ultra",
+    "Huawei|Pura 80 Pro+",
+    "Huawei|Pura 80 Ultra",
+    "OPPO|Find X10",
+    "OPPO|Find X10 E",
+    "OPPO|Find X10 Pro Max",
+    "OPPO|Find X7",
+    "OPPO|Find X7 Ultra",
+    "OPPO|Find X8",
+    "OPPO|Find X8 Pro",
+    "OPPO|Find X8 Ultra",
+    "OPPO|Find X8s",
+    "OPPO|Find X8s+",
+    "OPPO|Find X9",
+    "OPPO|Find X9 Pro",
+    "OPPO|Find X9 Ultra",
+    "OPPO|Find X9s",
+    "OPPO|Find X9s Pro",
+    "OPPO|Reno11",
+    "OPPO|Reno11 Pro",
+    "OPPO|Reno12",
+    "OPPO|Reno12 Pro",
+    "OPPO|Reno13",
+    "OPPO|Reno13 Pro",
+    "OPPO|Reno14",
+    "OPPO|Reno14 Pro",
+    "OPPO|Reno15",
+    "OPPO|Reno15 Pro",
+    "OPPO|Reno16",
+    "OPPO|Reno16 Pro",
+    "Samsung|Galaxy A35",
+    "Samsung|Galaxy A36",
+    "Samsung|Galaxy A37",
+    "Samsung|Galaxy A55",
+    "Samsung|Galaxy A56",
+    "Samsung|Galaxy A57",
+    "Samsung|Galaxy S24",
+    "Samsung|Galaxy S24 FE",
+    "Samsung|Galaxy S24 Ultra",
+    "Samsung|Galaxy S24+",
+    "Samsung|Galaxy S25",
+    "Samsung|Galaxy S25 Edge",
+    "Samsung|Galaxy S25 FE",
+    "Samsung|Galaxy S25 Ultra",
+    "Samsung|Galaxy S25+",
+    "Samsung|Galaxy S26",
+    "Samsung|Galaxy S26 FE",
+    "Samsung|Galaxy S26 Ultra",
+    "Samsung|Galaxy S26+",
+    "Xiaomi|Xiaomi 14 Ultra",
+    "Xiaomi|Xiaomi 15",
+    "Xiaomi|Xiaomi 15 Pro",
+    "Xiaomi|Xiaomi 15 Ultra",
+    "Xiaomi|Xiaomi 15S Pro",
+    "Xiaomi|Xiaomi 17",
+    "Xiaomi|Xiaomi 17 Pro",
+    "Xiaomi|Xiaomi 17 Pro Max",
+    "Xiaomi|Xiaomi 17 Ultra",
+    "Xiaomi|Xiaomi 18 Pro",
+    "Xiaomi|Xiaomi 18 Pro Max",
+}
 FOLDABLE = re.compile(r"(?i)\b(?:fold|flip)\b|摺疊|摺屏")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 GSM_HOSTS = {"www.gsmarena.com", "gsmarena.com"}
@@ -42,6 +141,10 @@ def main(argv: list[str]) -> int:
     records = json.loads(DATA_PATH.read_text(encoding="utf-8"))
     errors = validate_records(records, schema)
     errors.extend(census_errors(records))
+    errors.extend(asset_errors(records))
+    errors.extend(camera_errors(records))
+    for line in unmatched_chips(records):
+        print(f"unmatched chip: {line}")
     if errors:
         print(f"{DATA_PATH}: {len(errors)} problem(s)")
         for err in errors:
@@ -91,6 +194,130 @@ def census_errors(records) -> list[str]:
         errors.append(f"expected {EXPECTED_PHONES} phones, found {len(records)}")
     if core != EXPECTED_CORE:
         errors.append(f"expected {EXPECTED_CORE} core phones, found {core}")
+    if len(EXPECTED_KEYS) != EXPECTED_PHONES:
+        errors.append(f"expected key list has {len(EXPECTED_KEYS)} entries, want {EXPECTED_PHONES}")
+    found = set()
+    for rec in records:
+        if isinstance(rec, dict):
+            found.add(f"{rec.get('brand')}|{rec.get('model')}")
+    missing = sorted(EXPECTED_KEYS - found)
+    extra = sorted(found - EXPECTED_KEYS)
+    if missing:
+        errors.append("missing tournament phones: " + ", ".join(missing))
+    if extra:
+        errors.append("unexpected phones: " + ", ".join(extra))
+    if any(isinstance(rec, dict) and rec.get("core") is not True for rec in records):
+        errors.append("every tournament phone must have core true")
+    return errors
+
+
+def slug_of(brand, model) -> str:
+    text = f"{brand} {model}".lower().replace("+", " plus ").replace("＋", " plus ")
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    return re.sub(r"[^a-z0-9]+", "-", text).strip("-")
+
+
+def normalize_chip(value: str) -> str:
+    return "".join(value.lower().split())
+
+
+def load_chip_scores():
+    scores = json.loads(CHIP_PATH.read_text(encoding="utf-8"))
+    if not isinstance(scores, dict) or not scores:
+        raise ValueError("chip_scores.json must be an object")
+    for key, pair in scores.items():
+        if not isinstance(key, str) or not isinstance(pair, list) or len(pair) != 2:
+            raise ValueError(f"bad chip score entry {key!r}")
+        if isinstance(pair[0], bool) or not isinstance(pair[0], int) or not isinstance(pair[1], str):
+            raise ValueError(f"bad chip score entry {key!r}")
+    return scores
+
+
+def unmatched_chips(records) -> list[str]:
+    if not isinstance(records, list):
+        return []
+    scores = load_chip_scores()
+    unmatched = []
+    for rec in records:
+        if not isinstance(rec, dict):
+            continue
+        chip = rec.get("chip")
+        label = phone_label(rec, 0)
+        if not isinstance(chip, str) or not chip:
+            unmatched.append(f"{label}: chip is missing")
+            continue
+        if chip in scores:
+            continue
+        norm = normalize_chip(chip)
+        matched = False
+        for key in scores:
+            other = normalize_chip(key)
+            if other and (other in norm or norm in other):
+                matched = True
+                break
+        if not matched:
+            unmatched.append(f"{label}: {chip}")
+    return unmatched
+
+
+def asset_errors(records) -> list[str]:
+    if not isinstance(records, list):
+        return []
+    errors = []
+    seen_slugs = set()
+    for rec in records:
+        if not isinstance(rec, dict):
+            continue
+        label = phone_label(rec, 0)
+        accent = rec.get("accent")
+        if not isinstance(accent, str) or not ACCENT_RE.fullmatch(accent):
+            errors.append(f"{label}: accent must be a #rrggbb color")
+        slug = slug_of(rec.get("brand"), rec.get("model"))
+        if slug in seen_slugs:
+            errors.append(f"{label}: duplicate image slug {slug}")
+        seen_slugs.add(slug)
+        image = IMAGE_DIR / f"{slug}.webp"
+        if not image.is_file():
+            errors.append(f"{label}: missing cutout images/phones/{slug}.webp")
+    return errors
+
+
+def camera_errors(records) -> list[str]:
+    if not isinstance(records, list):
+        return []
+    rows = json.loads(CAMERA_PATH.read_text(encoding="utf-8"))
+    errors = []
+    if not isinstance(rows, list):
+        return ["camera_specs.json must be an array"]
+    by_phone = {}
+    for index, row in enumerate(rows):
+        if (
+            not isinstance(row, list)
+            or len(row) != 5
+            or not isinstance(row[0], str)
+            or not isinstance(row[1], str)
+            or isinstance(row[2], bool)
+            or not isinstance(row[2], (int, float))
+            or not isinstance(row[3], str)
+            or isinstance(row[4], bool)
+            or not isinstance(row[4], (int, float))
+        ):
+            errors.append(f"camera_specs.json row {index + 1} is not [brand, model, mp, rear, front]")
+            continue
+        key = (row[0], row[1])
+        if key in by_phone:
+            errors.append(f"camera_specs.json duplicate {row[0]} {row[1]}")
+        by_phone[key] = row
+    for rec in records:
+        if not isinstance(rec, dict):
+            continue
+        key = (rec.get("brand"), rec.get("model"))
+        if key not in by_phone:
+            errors.append(f"{phone_label(rec, 0)}: missing camera_specs.json row")
+    for brand, model in by_phone:
+        if f"{brand}|{model}" not in EXPECTED_KEYS:
+            errors.append(f"camera_specs.json unexpected phone {brand} {model}")
     return errors
 
 
@@ -530,12 +757,14 @@ def self_test(schema: dict) -> int:
     real = json.loads(DATA_PATH.read_text(encoding="utf-8"))
     ok &= expect_ok("researcher dataset", real)
     cases += 1
-    census = census_errors(real)
+    census = census_errors(real) + asset_errors(real) + camera_errors(real)
     if census:
         ok = False
         print("FAIL researcher census:")
         for err in census:
             print(f"  {err}")
+    for line in unmatched_chips(real):
+        print(f"unmatched chip: {line}")
 
     if not ok:
         return 1

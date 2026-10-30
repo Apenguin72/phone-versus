@@ -1,0 +1,639 @@
+[
+  [
+    "Apple",
+    "iPhone 18 Pro Max",
+    48,
+    "48+48+48MP",
+    18
+  ],
+  [
+    "Apple",
+    "iPhone 18 Pro",
+    48,
+    "48+48+48MP",
+    18
+  ],
+  [
+    "Apple",
+    "iPhone 17e",
+    48,
+    "48MP",
+    12
+  ],
+  [
+    "Apple",
+    "iPhone 17 Pro Max",
+    48,
+    "48+48+48MP",
+    18
+  ],
+  [
+    "Apple",
+    "iPhone 17 Pro",
+    48,
+    "48+48+48MP",
+    18
+  ],
+  [
+    "Apple",
+    "iPhone Air",
+    48,
+    "48MP",
+    18
+  ],
+  [
+    "Apple",
+    "iPhone 17",
+    48,
+    "48+48MP",
+    18
+  ],
+  [
+    "Apple",
+    "iPhone 16e",
+    48,
+    "48MP",
+    12
+  ],
+  [
+    "Apple",
+    "iPhone 16 Pro Max",
+    48,
+    "48+48+12MP",
+    12
+  ],
+  [
+    "Apple",
+    "iPhone 16 Pro",
+    48,
+    "48+48+12MP",
+    12
+  ],
+  [
+    "Apple",
+    "iPhone 16 Plus",
+    48,
+    "48+12MP",
+    12
+  ],
+  [
+    "Apple",
+    "iPhone 16",
+    48,
+    "48+12MP",
+    12
+  ],
+  [
+    "Samsung",
+    "Galaxy S26 FE",
+    50,
+    "50+12+8MP",
+    12
+  ],
+  [
+    "Samsung",
+    "Galaxy A57",
+    50,
+    "50+12+5MP",
+    12
+  ],
+  [
+    "Samsung",
+    "Galaxy A37",
+    50,
+    "50+8+5MP",
+    12
+  ],
+  [
+    "Samsung",
+    "Galaxy S26 Ultra",
+    200,
+    "200+50+10+50MP",
+    12
+  ],
+  [
+    "Samsung",
+    "Galaxy S26+",
+    50,
+    "50+12+10MP",
+    12
+  ],
+  [
+    "Samsung",
+    "Galaxy S26",
+    50,
+    "50+12+10MP",
+    12
+  ],
+  [
+    "Samsung",
+    "Galaxy S25 FE",
+    50,
+    "50+12+8MP",
+    12
+  ],
+  [
+    "Samsung",
+    "Galaxy S25 Edge",
+    200,
+    "200+12MP",
+    12
+  ],
+  [
+    "Samsung",
+    "Galaxy A56",
+    50,
+    "50+12+5MP",
+    12
+  ],
+  [
+    "Samsung",
+    "Galaxy A36",
+    50,
+    "50+8+5MP",
+    12
+  ],
+  [
+    "Samsung",
+    "Galaxy S25 Ultra",
+    200,
+    "200+50+10+50MP",
+    12
+  ],
+  [
+    "Samsung",
+    "Galaxy S25+",
+    50,
+    "50+12+10MP",
+    12
+  ],
+  [
+    "Samsung",
+    "Galaxy S25",
+    50,
+    "50+12+10MP",
+    12
+  ],
+  [
+    "Samsung",
+    "Galaxy S24 FE",
+    50,
+    "50+12+8MP",
+    10
+  ],
+  [
+    "Samsung",
+    "Galaxy A55",
+    50,
+    "50+12+5MP",
+    32
+  ],
+  [
+    "Samsung",
+    "Galaxy A35",
+    50,
+    "50+8+5MP",
+    13
+  ],
+  [
+    "Samsung",
+    "Galaxy S24 Ultra",
+    200,
+    "200+12+10+50MP",
+    12
+  ],
+  [
+    "Samsung",
+    "Galaxy S24+",
+    50,
+    "50+12+10MP",
+    12
+  ],
+  [
+    "Samsung",
+    "Galaxy S24",
+    50,
+    "50+12+10MP",
+    12
+  ],
+  [
+    "Google",
+    "Pixel 11 Pro XL",
+    50,
+    "50+48+48MP",
+    42
+  ],
+  [
+    "Google",
+    "Pixel 11 Pro",
+    50,
+    "50+48+48MP",
+    42
+  ],
+  [
+    "Google",
+    "Pixel 11",
+    48,
+    "48+13+10.8MP",
+    10
+  ],
+  [
+    "Google",
+    "Pixel 10a",
+    48,
+    "48+13MP",
+    13
+  ],
+  [
+    "Google",
+    "Pixel 10 Pro XL",
+    50,
+    "50+48+48MP",
+    42
+  ],
+  [
+    "Google",
+    "Pixel 10 Pro",
+    50,
+    "50+48+48MP",
+    42
+  ],
+  [
+    "Google",
+    "Pixel 10",
+    48,
+    "48+13+10.8MP",
+    10
+  ],
+  [
+    "Google",
+    "Pixel 9a",
+    48,
+    "48+13MP",
+    13
+  ],
+  [
+    "Google",
+    "Pixel 9 Pro XL",
+    50,
+    "50+48+48MP",
+    42
+  ],
+  [
+    "Google",
+    "Pixel 9 Pro",
+    50,
+    "50+48+48MP",
+    42
+  ],
+  [
+    "Google",
+    "Pixel 9",
+    50,
+    "50+48MP",
+    10
+  ],
+  [
+    "Google",
+    "Pixel 8a",
+    64,
+    "64+13MP",
+    13
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 18 Pro Max",
+    200,
+    "200+50+200MP",
+    50
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 18 Pro",
+    200,
+    "200+50+200MP",
+    50
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 17 Ultra",
+    50,
+    "50+50+200MP",
+    50
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 17",
+    50,
+    "50+50+50MP",
+    50
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 17 Pro Max",
+    50,
+    "50+50+50MP",
+    50
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 17 Pro",
+    50,
+    "50+50+50MP",
+    50
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 15S Pro",
+    50,
+    "50+50+50MP",
+    32
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 15 Ultra",
+    50,
+    "50+50+50+200MP",
+    32
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 15",
+    50,
+    "50+50+50MP",
+    32
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 15 Pro",
+    50,
+    "50+50+50MP",
+    32
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 14 Ultra",
+    50,
+    "50+50+50+50MP",
+    32
+  ],
+  [
+    "Huawei",
+    "Mate 80 Pro Max",
+    50,
+    "50+40+50+50MP",
+    13
+  ],
+  [
+    "Huawei",
+    "Mate 80",
+    50,
+    "50+40+12MP",
+    13
+  ],
+  [
+    "Huawei",
+    "Pura 80 Ultra",
+    50,
+    "50+40+50+12.5MP",
+    13
+  ],
+  [
+    "Huawei",
+    "Pura 80 Pro+",
+    50,
+    "50+40+48MP",
+    13
+  ],
+  [
+    "Huawei",
+    "Mate 70 Pro+",
+    50,
+    "50+40+48MP",
+    13
+  ],
+  [
+    "Huawei",
+    "Mate 70 Pro",
+    50,
+    "50+40+48MP",
+    13
+  ],
+  [
+    "Huawei",
+    "Mate 70",
+    50,
+    "50+40+12MP",
+    13
+  ],
+  [
+    "Huawei",
+    "Pura 70 Ultra",
+    50,
+    "50+40+50MP",
+    13
+  ],
+  [
+    "Huawei",
+    "Pura 70 Pro+",
+    50,
+    "50+12.5+48MP",
+    13
+  ],
+  [
+    "Huawei",
+    "Pura 70 Pro",
+    50,
+    "50+12.5+48MP",
+    13
+  ],
+  [
+    "OPPO",
+    "Find X10 Pro Max",
+    200,
+    "200+200+200MP",
+    50
+  ],
+  [
+    "OPPO",
+    "Find X10",
+    200,
+    "200+50+200MP",
+    50
+  ],
+  [
+    "OPPO",
+    "Find X10 E",
+    50,
+    "50+50+50MP",
+    32
+  ],
+  [
+    "OPPO",
+    "Reno16 Pro",
+    200,
+    "200+50+50MP",
+    50
+  ],
+  [
+    "OPPO",
+    "Reno16",
+    50,
+    "50+50+50MP",
+    50
+  ],
+  [
+    "OPPO",
+    "Find X9 Ultra",
+    200,
+    "200+50+200+50MP",
+    50
+  ],
+  [
+    "OPPO",
+    "Find X9s Pro",
+    200,
+    "200+50+200MP",
+    32
+  ],
+  [
+    "OPPO",
+    "Find X9s",
+    50,
+    "50+50+50MP",
+    32
+  ],
+  [
+    "OPPO",
+    "Reno15 Pro",
+    200,
+    "200+50+50MP",
+    50
+  ],
+  [
+    "OPPO",
+    "Reno15",
+    50,
+    "50+8+50MP",
+    50
+  ],
+  [
+    "OPPO",
+    "Find X9 Pro",
+    50,
+    "50+50+200MP",
+    50
+  ],
+  [
+    "OPPO",
+    "Find X9",
+    50,
+    "50+50+50MP",
+    32
+  ],
+  [
+    "OPPO",
+    "Reno14 Pro",
+    50,
+    "50+50+50MP",
+    50
+  ],
+  [
+    "OPPO",
+    "Reno14",
+    50,
+    "50+8+50MP",
+    50
+  ],
+  [
+    "OPPO",
+    "Find X8 Ultra",
+    50,
+    "50+50+50+50MP",
+    32
+  ],
+  [
+    "OPPO",
+    "Find X8s+",
+    50,
+    "50+50+50MP",
+    32
+  ],
+  [
+    "OPPO",
+    "Find X8s",
+    50,
+    "50+50+50MP",
+    32
+  ],
+  [
+    "OPPO",
+    "Reno13 Pro",
+    50,
+    "50+8+50MP",
+    50
+  ],
+  [
+    "OPPO",
+    "Reno13",
+    50,
+    "50+8MP",
+    50
+  ],
+  [
+    "OPPO",
+    "Find X8 Pro",
+    50,
+    "50+50+50+50MP",
+    32
+  ],
+  [
+    "OPPO",
+    "Find X8",
+    50,
+    "50+50+50MP",
+    32
+  ],
+  [
+    "OPPO",
+    "Reno12 Pro",
+    50,
+    "50+8+50MP",
+    50
+  ],
+  [
+    "OPPO",
+    "Reno12",
+    50,
+    "50+8+2MP",
+    32
+  ],
+  [
+    "OPPO",
+    "Reno11 Pro",
+    50,
+    "50+8+32MP",
+    32
+  ],
+  [
+    "OPPO",
+    "Reno11",
+    50,
+    "50+8+32MP",
+    32
+  ],
+  [
+    "OPPO",
+    "Find X7 Ultra",
+    50,
+    "50+50+50+50MP",
+    32
+  ],
+  [
+    "OPPO",
+    "Find X7",
+    50,
+    "50+50+64MP",
+    32
+  ]
+]

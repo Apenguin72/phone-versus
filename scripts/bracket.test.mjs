@@ -6,7 +6,9 @@ import {
   currentMatch,
   drawEntrants,
   mainMatchCount,
+  gameRecord,
   pickWinner,
+  playedMatches,
   podium,
   progress,
   roundName,
@@ -54,7 +56,7 @@ test("bracket sizes and match counts", () => {
 });
 
 test("draw is unique and a new seed reshuffles", () => {
-  const pool = slugs(104);
+  const pool = slugs(91);
   const first = drawEntrants(pool, 16, lcg(1));
   const second = drawEntrants(pool, 16, lcg(2));
   assert.equal(new Set(first).size, 16);
@@ -105,6 +107,42 @@ test("third place is the winner of the semifinal losers", () => {
   assert.equal(places.runnerUp, "phone-8");
   assert.equal(places.third, "phone-4");
   assert.deepEqual(semifinalLosers(state), ["phone-4", "phone-12"]);
+});
+
+test("a finished bracket matches the community submit contract", () => {
+  for (const size of BRACKET_SIZES) {
+    const state = playAll(createTournament(slugs(size)));
+    const record = gameRecord(state);
+    assert.equal(record.bracket_size, size);
+    assert.equal(record.entrants.length, size);
+    assert.equal(new Set(record.entrants).size, size);
+    assert.equal(record.matches.length, size);
+    assert.deepEqual(playedMatches(state), record.matches);
+    const finals = record.matches.filter((match) => match.round === "final");
+    const thirds = record.matches.filter((match) => match.round === "third");
+    assert.equal(finals.length, 1);
+    assert.equal(thirds.length, 1);
+    assert.equal(record.matches.at(-2).round, "final");
+    assert.equal(record.matches.at(-1).round, "third");
+    assert.equal(finals[0].winner, record.top1);
+    assert.equal(finals[0].loser, record.top2);
+    assert.equal(thirds[0].winner, record.top3);
+    assert.equal(new Set([record.top1, record.top2, record.top3]).size, 3);
+    const losses = new Map();
+    for (const match of record.matches) {
+      assert.notEqual(match.winner, match.loser);
+      assert.equal(record.entrants.includes(match.winner), true);
+      assert.equal(record.entrants.includes(match.loser), true);
+      losses.set(match.loser, (losses.get(match.loser) || 0) + 1);
+    }
+    assert.equal(losses.has(record.top1), false);
+    assert.equal(losses.size, size - 1);
+    const repeatLosers = [...losses.values()].filter((count) => count > 1);
+    assert.equal(repeatLosers.length, 1);
+    assert.equal(repeatLosers[0], 2);
+    assert.equal(losses.get(thirds[0].loser), 2);
+  }
+  assert.equal(gameRecord(createTournament(slugs(16))), null);
 });
 
 test("a second pick does not advance again, and undo restores the match", () => {

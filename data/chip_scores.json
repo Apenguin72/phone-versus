@@ -1,0 +1,202 @@
+{
+  "Apple A20 Pro (2 nm)": [
+    4801,
+    "estimate_socpk_ratio"
+  ],
+  "Apple A19 (3 nm)": [
+    3849,
+    "socpk"
+  ],
+  "Apple A19 Pro (3 nm)": [
+    4019,
+    "socpk"
+  ],
+  "Apple A18 (3 nm)": [
+    3509,
+    "socpk"
+  ],
+  "Apple A18 Pro (3 nm)": [
+    3605,
+    "socpk"
+  ],
+  "Exynos 2500 (3 nm)": [
+    2270,
+    "geekbench_median"
+  ],
+  "Exynos 1680 (4 nm)": [
+    1370,
+    "geekbench_median"
+  ],
+  "Exynos 1480 (4 nm)": [
+    1131,
+    "geekbench_median"
+  ],
+  "Qualcomm SM8850-1-AD Snapdragon 8 Elite Gen 5 (3 nm)": [
+    3836,
+    "socpk"
+  ],
+  "Exynos 2600 (2 nm)": [
+    2930,
+    "geekbench_median"
+  ],
+  "Exynos 2400 (4 nm)": [
+    2230,
+    "socpk"
+  ],
+  "Qualcomm SM8750-AC Snapdragon 8 Elite (3 nm)": [
+    3237,
+    "socpk"
+  ],
+  "Exynos 1580 (4 nm)": [
+    1345,
+    "geekbench_median"
+  ],
+  "Qualcomm SM6475-AB Snapdragon 6 Gen 3 (4 nm)": [
+    1002,
+    "geekbench_median"
+  ],
+  "Exynos 2400e (4 nm)": [
+    1934,
+    "geekbench_median"
+  ],
+  "Exynos 1380 (5 nm)": [
+    1006,
+    "geekbench_median"
+  ],
+  "Qualcomm SM8650-AC Snapdragon 8 Gen 3 (4 nm)": [
+    2213,
+    "socpk"
+  ],
+  "Google Tensor G6 (3 nm)": [
+    2719,
+    "geekbench_median"
+  ],
+  "Google Tensor G4 (4 nm)": [
+    1958,
+    "socpk"
+  ],
+  "Google Tensor G5 (3 nm)": [
+    2274,
+    "geekbench_median"
+  ],
+  "Google Tensor G3 (4 nm)": [
+    1767,
+    "socpk"
+  ],
+  "Qualcomm SM8975 Snapdragon 8 Elite Extreme Gen 6 (2 nm)": [
+    3786,
+    "geekbench_median"
+  ],
+  "Qualcomm Snapdragon 8 Elite Gen 6 (2 nm)": [
+    3495,
+    "geekbench_median"
+  ],
+  "Mediatek Dimensity 9500 (3 nm)": [
+    3709,
+    "socpk"
+  ],
+  "Qualcomm SM8850-AC Snapdragon 8 Elite Gen 5 (3 nm)": [
+    3836,
+    "socpk"
+  ],
+  "Mediatek Dimensity 9400+ (3 nm)": [
+    2641,
+    "geekbench_median"
+  ],
+  "Mediatek Dimensity 8400 Ultra (4 nm)": [
+    1594,
+    "geekbench_median"
+  ],
+  "Xring O1 (3 nm)": [
+    3125,
+    "socpk"
+  ],
+  "Qualcomm SM8750-AB Snapdragon 8 Elite (3 nm)": [
+    3237,
+    "socpk"
+  ],
+  "Mediatek Dimensity 9300+ (4 nm)": [
+    2158,
+    "geekbench_median"
+  ],
+  "Mediatek Dimensity 8300 Ultra (4 nm)": [
+    1587,
+    "socpk"
+  ],
+  "Qualcomm SM8650-AB Snapdragon 8 Gen 3 (4 nm)": [
+    2213,
+    "socpk"
+  ],
+  "Kirin 9020 (7 nm)": [
+    1616,
+    "socpk"
+  ],
+  "Kirin 8000 (7 nm)": [
+    984,
+    "socpk"
+  ],
+  "Kirin 9010 (7 nm)": [
+    1458,
+    "socpk"
+  ],
+  "Kirin 9000S (7 nm)": [
+    1299,
+    "socpk"
+  ],
+  "Mediatek Dimensity 9600 Pro (2 nm)": [
+    3061,
+    "geekbench_median"
+  ],
+  "Mediatek Dimensity 9600M (3 nm)": [
+    3072,
+    "geekbench_median"
+  ],
+  "Mediatek Dimensity 9500s (3 nm)": [
+    2476,
+    "geekbench_median"
+  ],
+  "Mediatek Dimensity 8550 Super (4 nm)": [
+    1532,
+    "geekbench_median"
+  ],
+  "Qualcomm SM7750-AB Snapdragon 7 Gen 4 (4 nm)": [
+    1268,
+    "geekbench_median"
+  ],
+  "Mediatek Dimensity 8450 (4 nm)": [
+    1605,
+    "geekbench_median"
+  ],
+  "Mediatek Dimensity 8350 (4 nm)": [
+    1311,
+    "geekbench_median"
+  ],
+  "Mediatek Dimensity 9400 (3 nm)": [
+    3010,
+    "socpk"
+  ],
+  "Mediatek Dimensity 7300 Energy (4 nm)": [
+    984,
+    "geekbench_median"
+  ],
+  "Mediatek Dimensity 8200 (4 nm)": [
+    1248,
+    "socpk"
+  ],
+  "Mediatek Dimensity 7050 (6 nm)": [
+    798,
+    "geekbench_median"
+  ],
+  "Mediatek Dimensity 9300 (4 nm)": [
+    2264,
+    "socpk"
+  ],
+  "Qualcomm SM8850-1-AD Snapdragon 8 Elite Gen 5 (3 nm) (USA/Canada/China)": [
+    3836,
+    "socpk"
+  ],
+  "Qualcomm SM8650-AC Snapdragon 8 Gen 3 (4 nm) (USA/Canada/China)": [
+    2213,
+    "socpk"
+  ]
+}

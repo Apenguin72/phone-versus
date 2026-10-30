@@ -127,6 +127,45 @@ export function podium(state) {
   return { champion, runnerUp, third: state.third.winner };
 }
 
+export function roundToken(size, roundIndex) {
+  const players = size / 2 ** roundIndex;
+  if (players === 2) return "final";
+  return String(players);
+}
+
+function decidedMatch(match, round) {
+  const winner = match.winner;
+  const loser = winner === match.a ? match.b : match.a;
+  return { round, winner, loser };
+}
+
+/** Play-order matches for submit_game: elimination rounds, then the third-place match. */
+export function playedMatches(state) {
+  if (!state || state.phase !== "done" || !state.third?.winner) return null;
+  const matches = [];
+  state.rounds.forEach((round, roundIndex) => {
+    const token = roundToken(state.size, roundIndex);
+    for (const match of round) matches.push(decidedMatch(match, token));
+  });
+  matches.push(decidedMatch(state.third, "third"));
+  return matches;
+}
+
+/** Payload fields shared by every finished bracket. visitor_id and device are added by the client. */
+export function gameRecord(state) {
+  const places = podium(state);
+  const matches = playedMatches(state);
+  if (!places || !matches) return null;
+  return {
+    bracket_size: state.size,
+    entrants: state.entrants.slice(),
+    matches,
+    top1: places.champion,
+    top2: places.runnerUp,
+    top3: places.third,
+  };
+}
+
 export function semifinalLosers(state) {
   const semis = state.rounds[state.rounds.length - 2];
   if (semis.some((match) => !match.winner)) return null;
