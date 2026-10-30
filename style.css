@@ -1,12 +1,10 @@
 :root {
   color-scheme: dark;
   --bg: #0c0e12;
-  --bg-2: #14171d;
   --ink: #f4f1ea;
   --muted: #a39e94;
   --line: #2c303a;
   --card: #171a21;
-  --card-2: #1e222b;
   --accent: #3ddc97;
   --accent-ink: #06281a;
   --shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
@@ -154,18 +152,6 @@ main { padding-bottom: 40px; }
 code {
   font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   font-size: 0.88em;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
 }
 
 :focus-visible {
