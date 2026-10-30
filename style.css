@@ -384,13 +384,6 @@ button.phone-card:hover { border-color: var(--phone-accent, var(--accent)); }
   font-weight: 650;
 }
 
-.os-text {
-  margin: 0;
-  font-size: 0.86rem;
-  font-weight: 680;
-  line-height: 1.3;
-}
-
 .track {
   height: 7px;
   margin-top: 5px;
@@ -583,13 +576,6 @@ button.phone-card:hover { border-color: var(--phone-accent, var(--accent)); }
   .detail {
     margin-top: 2px;
     font-size: 0.6rem;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-  .os-text {
-    font-size: 0.62rem;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
