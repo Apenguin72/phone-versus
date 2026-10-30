@@ -91,22 +91,12 @@ async function init() {
     if (!Array.isArray(data)) throw new Error("資料格式不是陣列");
     phones = sortPhones(data);
     bySlug = new Map(phones.map((phone) => [slugOf(phone), phone]));
-    if (chipResponse.ok) chipScores = await chipResponse.json();
-    if (cameraResponse.ok) {
-      const rows = await cameraResponse.json();
-      cameras = new Map(rows.map((row) => [`${row[0]}|${row[1]}`, {
-        main: row[2],
-        rear: row[3],
-        front: row[4],
-      }]));
-    }
-    if (priceResponse.ok) {
-      const rows = await priceResponse.json();
-      prices = new Map(rows.map((row) => [`${row[0]}|${row[1]}`, {
-        price: row[2],
-        converted: row[3] === 1,
-      }]));
-    }
+    const chipData = await readOptionalJson(chipResponse);
+    if (chipData && typeof chipData === "object" && !Array.isArray(chipData)) chipScores = chipData;
+    const cameraRows = await readOptionalJson(cameraResponse);
+    if (Array.isArray(cameraRows)) cameras = cameraMap(cameraRows);
+    const priceRows = await readOptionalJson(priceResponse);
+    if (Array.isArray(priceRows)) prices = priceMap(priceRows);
     recomputeSpec26Max();
   } catch {
     showError("手機資料無法讀取。請確認 data/phones.json 可以從這個網站載入。");
@@ -138,6 +128,40 @@ async function init() {
   ensurePreview();
   renderRoute();
   if (tournament?.phase === "done") maybeSubmit();
+}
+
+async function readOptionalJson(response) {
+  if (!response?.ok) return null;
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+function cameraMap(rows) {
+  const map = new Map();
+  for (const row of rows) {
+    if (!Array.isArray(row) || typeof row[0] !== "string" || typeof row[1] !== "string") continue;
+    map.set(`${row[0]}|${row[1]}`, {
+      main: row[2],
+      rear: row[3],
+      front: row[4],
+    });
+  }
+  return map;
+}
+
+function priceMap(rows) {
+  const map = new Map();
+  for (const row of rows) {
+    if (!Array.isArray(row) || typeof row[0] !== "string" || typeof row[1] !== "string") continue;
+    map.set(`${row[0]}|${row[1]}`, {
+      price: row[2],
+      converted: row[3] === 1,
+    });
+  }
+  return map;
 }
 
 function showError(message) {
@@ -514,7 +538,8 @@ function barTrack(phone, percent) {
   track.setAttribute("aria-hidden", "true");
   const fill = document.createElement("span");
   fill.className = "fill";
-  fill.style.width = `${percent}%`;
+  const width = Number.isFinite(percent) ? Math.max(0, Math.min(100, percent)) : 0;
+  fill.style.width = `${width}%`;
   fill.style.setProperty("--phone-accent", accentOf(phone));
   fill.style.background = accentOf(phone);
   track.append(fill);
@@ -547,24 +572,27 @@ function buildChipSide(phone, _other, side) {
       metric.append(tag);
     }
   }
-  const detail = document.createElement("p");
-  detail.className = "detail";
-  detail.textContent = phone?.chip || "";
-  if (phone?.chip) detail.title = phone.chip;
-  wrap.append(metric, barTrack(phone, chipBarPercent(score)), detail);
+  wrap.append(metric, barTrack(phone, chipBarPercent(score)));
+  if (typeof phone?.chip === "string" && phone.chip) {
+    const detail = document.createElement("p");
+    detail.className = "detail";
+    detail.textContent = phone.chip;
+    detail.title = phone.chip;
+    wrap.append(detail);
+  }
   return wrap;
 }
 
 function buildCameraSide(phone, other, side) {
   const cam = cameraOf(phone);
   const otherCam = cameraOf(other);
+  const main = finiteNumber(cam?.main);
+  const otherMain = finiteNumber(otherCam?.main);
   const wrap = document.createElement("div");
   wrap.className = `side side-${side}`;
   const metric = document.createElement("p");
   metric.className = "metric";
-  const main = cam ? Number(cam.main) : null;
-  const otherMain = otherCam ? Number(otherCam.main) : null;
-  if (main == null || Number.isNaN(main)) metric.append(missingLabel());
+  if (main == null) metric.append(missingLabel());
   else {
     const num = document.createElement("span");
     num.className = "num";
@@ -574,19 +602,31 @@ function buildCameraSide(phone, other, side) {
     unit.textContent = "MP";
     metric.append(num, unit);
   }
-  const detail = document.createElement("p");
-  detail.className = "detail";
-  if (cam) {
-    const rear = document.createElement("span");
-    rear.className = "rear";
-    rear.textContent = cam.rear;
-    const front = document.createElement("span");
-    front.className = "front";
-    front.textContent = `前鏡頭 ${formatNumber(cam.front)}MP`;
-    detail.title = `${cam.rear} · 前鏡頭 ${formatNumber(cam.front)}MP`;
-    detail.append(rear, front);
+  wrap.append(metric, barTrack(phone, barPercent(main, otherMain, false)));
+  const rear = typeof cam?.rear === "string" && cam.rear.trim() ? cam.rear : "";
+  const front = finiteNumber(cam?.front);
+  if (rear || front != null) {
+    const detail = document.createElement("p");
+    detail.className = "detail";
+    const parts = [];
+    if (rear) {
+      const rearEl = document.createElement("span");
+      rearEl.className = "rear";
+      rearEl.textContent = rear;
+      detail.append(rearEl);
+      parts.push(rear);
+    }
+    if (front != null) {
+      const frontText = `前鏡頭 ${formatNumber(front)}MP`;
+      const frontEl = document.createElement("span");
+      frontEl.className = "front";
+      frontEl.textContent = frontText;
+      detail.append(frontEl);
+      parts.push(frontText);
+    }
+    detail.title = parts.join(" · ");
+    wrap.append(detail);
   }
-  wrap.append(metric, barTrack(phone, barPercent(main, otherMain, false)), detail);
   return wrap;
 }
 
@@ -648,7 +688,6 @@ function renderPhoto(phone, alt) {
   const frame = document.createElement("div");
   frame.className = "photo";
   const showPlaceholder = () => {
-    frame.dataset.photo = "placeholder";
     frame.replaceChildren();
     const brand = document.createElement("p");
     brand.className = "photo-brand";
@@ -1036,9 +1075,7 @@ function priceOf(phone) {
 }
 
 function priceAmount(entry) {
-  const value = entry?.price;
-  if (typeof value !== "number" || Number.isNaN(value)) return null;
-  return value;
+  return finiteNumber(entry?.price);
 }
 
 function chipRecord(chip) {
@@ -1061,9 +1098,7 @@ function chipRecord(chip) {
 }
 
 function chipScore(chip) {
-  const value = chipRecord(chip)?.spec26_at_6w;
-  if (typeof value !== "number" || Number.isNaN(value)) return null;
-  return value;
+  return finiteNumber(chipRecord(chip)?.spec26_at_6w);
 }
 
 function chipConfidence(chip) {
@@ -1080,7 +1115,7 @@ function recomputeSpec26Max() {
 }
 
 function chipBarPercent(value) {
-  if (value == null || !(spec26Max > 0)) return 0;
+  if (!Number.isFinite(value) || !(spec26Max > 0)) return 0;
   return Math.max(0, Math.min(100, (value / spec26Max) * 100));
 }
 
@@ -1092,15 +1127,18 @@ function normalizeChip(value) {
   return String(value).toLowerCase().replace(/\s+/g, "");
 }
 
-function numericValue(phone, field) {
-  const value = phone?.[field];
-  if (typeof value !== "number" || Number.isNaN(value)) return null;
+function finiteNumber(value) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
   return value;
 }
 
+function numericValue(phone, field) {
+  return finiteNumber(phone?.[field]);
+}
+
 function barPercent(value, other, invert) {
-  if (value == null) return 0;
-  if (other == null || value === other) return 100;
+  if (!Number.isFinite(value)) return 0;
+  if (!Number.isFinite(other) || value === other) return 100;
   if (!invert) {
     const max = Math.max(value, other);
     if (max <= 0) return 0;
