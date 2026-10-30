@@ -8,7 +8,7 @@ export function sizeOptions(poolSize) {
   return BRACKET_SIZES.map((size) => ({
     size,
     enabled: poolSize >= size,
-    message: poolSize >= size ? "" : `主力機型只有 ${poolSize} 支，不能進行 ${size} 強。`,
+    message: poolSize >= size ? "" : `參賽機型只有 ${poolSize} 支，不能進行 ${size} 強。`,
   }));
 }
 

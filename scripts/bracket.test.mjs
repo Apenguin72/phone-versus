@@ -67,7 +67,7 @@ test("a pool smaller than the bracket is rejected", () => {
   const options = sizeOptions(20);
   assert.equal(options.find((item) => item.size === 16).enabled, true);
   assert.equal(options.find((item) => item.size === 32).enabled, false);
-  assert.match(options.find((item) => item.size === 32).message, /不能進行 32 強/);
+  assert.equal(options.find((item) => item.size === 32).message, "參賽機型只有 20 支，不能進行 32 強。");
   assert.equal(options.find((item) => item.size === 64).enabled, false);
   assert.throws(() => drawEntrants(slugs(20), 32, lcg(1)), /smaller than bracket/);
 });

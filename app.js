@@ -82,9 +82,9 @@ async function init() {
   try {
     const [phoneResponse, chipResponse, cameraResponse, priceResponse] = await Promise.all([
       fetch("data/phones.json"),
-      fetch("data/chip_scores.json"),
-      fetch("data/camera_specs.json"),
-      fetch("data/launch_prices.json"),
+      fetch("data/chip_scores.json").catch(() => null),
+      fetch("data/camera_specs.json").catch(() => null),
+      fetch("data/launch_prices.json").catch(() => null),
     ]);
     if (!phoneResponse.ok) throw new Error(`HTTP ${phoneResponse.status}`);
     const data = await phoneResponse.json();
