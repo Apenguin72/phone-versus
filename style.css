@@ -526,9 +526,25 @@ button.phone-card:hover { border-color: var(--phone-accent, var(--accent)); }
   body[data-route="play"] .tabs { gap: 4px; }
   body[data-route="play"] .tabs button,
   body[data-route="play"] #undo {
-    min-height: 32px;
     padding: 0 8px;
     font-size: 0.78rem;
+  }
+  body[data-route="play"] .tabs button {
+    min-height: 32px;
+  }
+  /* Keep the 32px row so the match still fits; the hit area extends downward. */
+  body[data-route="play"] #undo {
+    position: relative;
+    z-index: 1;
+    min-height: 32px;
+  }
+  body[data-route="play"] #undo::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 44px;
   }
   body[data-route="play"] .round-bar { margin: 2px 0 4px; }
   body[data-route="play"] .round-bar h2 { font-size: 0.92rem; display: inline; }
