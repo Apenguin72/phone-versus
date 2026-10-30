@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Phone",
-  "description": "2023-11-01（含）以後全球首發的非摺疊直板機。品牌限 Apple、Samsung、Google、Xiaomi、Huawei、OPPO。續航比較只用 battery_mAh；official_endurance_hours 只供顯示，可為 null，且不在 field_status 裡。規格欄位可為 null，但僅限 field_status 標成 unconfirmed。core 為 true 的機型屬於較小的主力清單。battery_source_* 只用於 iPhone，必須成對，不可為 null；其他品牌省略。chip_variants、refresh_note、image_url、image_page_url、image_note、image_source 都可省略。照片只放遠端網址，不把圖片檔放進這個倉庫。",
+  "description": "2023-11-01（含）以後全球首發的非摺疊直板機。品牌限 Apple、Samsung、Google、Xiaomi、Huawei、OPPO。續航比較只用 battery_mAh；official_endurance_hours 只供顯示，可為 null，且不在 field_status 裡。規格欄位可為 null，但僅限 field_status 標成 unconfirmed。core 為 true 的機型可進入淘汰賽。battery_source_* 只用於 iPhone，必須成對，不可為 null；其他品牌省略。chip_variants、refresh_note、image_url、image_page_url、image_note、image_source、accent 都可省略。image_url 仍是下載用的遠端網址；網站顯示的去背圖在 images/phones/<slug>.webp。accent 是機身主色。",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -161,6 +161,11 @@
     "image_source": {
       "type": ["string", "null"],
       "description": "照片出處，可以是名稱或網址。可省略或 null。"
+    },
+    "accent": {
+      "type": "string",
+      "pattern": "^#[0-9A-Fa-f]{6}$",
+      "description": "去背圖上的機身主色（#rrggbb）。抽不到非灰色時用品牌色。比較條與型號名稱用這個顏色。"
     }
   }
 }

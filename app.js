@@ -2,6 +2,7 @@ import {
   createTournament,
   currentMatch,
   drawEntrants,
+  gameRecord,
   isRestorable,
   pickWinner,
   podium,
@@ -11,7 +12,10 @@ import {
 } from "./bracket.js";
 
 const STORAGE_KEY = "phone-versus-tournament-v1";
+const VISITOR_KEY = "phone-versus-visitor-id";
 const PICK_LOCK_MS = 450;
+const SUPABASE_URL = "https://dwlgryypcxgaejkislxx.supabase.co";
+const SUPABASE_KEY = "sb_publishable_Q13zZthAOCxUuG2pSptGfg_iAOGH1Li";
 
 const BRANDS = [
   ["", "全部品牌"],
@@ -25,15 +29,13 @@ const BRANDS = [
 
 const BRAND_ORDER = BRANDS.slice(1).map(([brand]) => brand);
 
-const SOURCE_LABEL = {
-  official: "官方",
-  gsmarena: "GSMArena",
-  regulatory: "法規文件",
-};
-
-const BATTERY_SOURCE_LABEL = {
-  filing: "申報",
-  press: "報導",
+const BRAND_ACCENT = {
+  Apple: "#8e8e93",
+  Samsung: "#5b7cfa",
+  Google: "#4285f4",
+  Xiaomi: "#ff6900",
+  Huawei: "#cf0a2c",
+  OPPO: "#26c281",
 };
 
 const picker = {
@@ -43,6 +45,8 @@ const picker = {
 
 let phones = [];
 let bySlug = new Map();
+let chipScores = {};
+let cameras = new Map();
 let tournament = null;
 let preview = { size: 16, entrants: [] };
 let poolLimit = null;
@@ -62,25 +66,38 @@ async function init() {
     start: document.getElementById("view-start"),
     play: document.getElementById("view-play"),
     compare: document.getElementById("view-compare"),
-    workspace: document.getElementById("workspace"),
+    ranking: document.getElementById("view-ranking"),
     filterEmpty: document.getElementById("filter-empty"),
     same: document.getElementById("same"),
-    compareWrap: document.getElementById("compare-wrap"),
+    compareBoard: document.getElementById("compare-board"),
     coreOnly: document.getElementById("core-only"),
     scopeCount: document.getElementById("scope-count"),
-    tbody: document.querySelector("#compare tbody"),
-    headA: document.getElementById("head-a"),
-    headB: document.getElementById("head-b"),
+    rankStatus: document.getElementById("rank-status"),
+    rankTop: document.getElementById("rank-top"),
+    rankList: document.getElementById("rank-list"),
   });
 
   try {
-    const response = await fetch("data/phones.json");
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
+    const [phoneResponse, chipResponse, cameraResponse] = await Promise.all([
+      fetch("data/phones.json"),
+      fetch("data/chip_scores.json"),
+      fetch("data/camera_specs.json"),
+    ]);
+    if (!phoneResponse.ok) throw new Error(`HTTP ${phoneResponse.status}`);
+    const data = await phoneResponse.json();
     if (!Array.isArray(data)) throw new Error("資料格式不是陣列");
     phones = sortPhones(data);
     bySlug = new Map(phones.map((phone) => [slugOf(phone), phone]));
-  } catch (err) {
+    if (chipResponse.ok) chipScores = await chipResponse.json();
+    if (cameraResponse.ok) {
+      const rows = await cameraResponse.json();
+      cameras = new Map(rows.map((row) => [`${row[0]}|${row[1]}`, {
+        main: row[2],
+        rear: row[3],
+        front: row[4],
+      }]));
+    }
+  } catch {
     showError("手機資料無法讀取。請確認 data/phones.json 可以從這個網站載入。");
     return;
   }
@@ -91,6 +108,7 @@ async function init() {
     els.start.hidden = true;
     els.play.hidden = true;
     els.compare.hidden = true;
+    els.ranking.hidden = true;
     els.empty.hidden = false;
     return;
   }
@@ -108,6 +126,7 @@ async function init() {
   }
   ensurePreview();
   renderRoute();
+  if (tournament?.phase === "done") maybeSubmit();
 }
 
 function showError(message) {
@@ -132,6 +151,7 @@ function setupTournament() {
     navigate(tournament ? "play" : "start");
   });
   document.getElementById("tab-compare").addEventListener("click", () => navigate("compare"));
+  document.getElementById("tab-ranking").addEventListener("click", () => navigate("ranking"));
   document.getElementById("reshuffle").addEventListener("click", () => reshuffle());
   document.getElementById("start-game").addEventListener("click", () => startGame());
   document.getElementById("continue-game").addEventListener("click", () => navigate("play"));
@@ -147,12 +167,14 @@ function viewFromLocation() {
   const hash = location.hash || "#/";
   if (hash.startsWith("#/compare")) return "compare";
   if (hash.startsWith("#/play")) return "play";
+  if (hash.startsWith("#/ranking")) return "ranking";
   return "start";
 }
 
 function hashFor(view) {
   if (view === "compare") return "#/compare";
   if (view === "play") return "#/play";
+  if (view === "ranking") return "#/ranking";
   return "#/";
 }
 
@@ -168,19 +190,27 @@ function navigate(view) {
 
 function renderRoute() {
   const view = history.state?.view || viewFromLocation();
+  document.body.dataset.route = view;
   els.start.hidden = view !== "start";
   els.play.hidden = view !== "play";
   els.compare.hidden = view !== "compare";
-  document.getElementById("tab-play").setAttribute("aria-current", view === "compare" ? "false" : "page");
-  document.getElementById("tab-compare").setAttribute("aria-current", view === "compare" ? "page" : "false");
+  els.ranking.hidden = view !== "ranking";
+  const current = {
+    "tab-play": view === "start" || view === "play",
+    "tab-compare": view === "compare",
+    "tab-ranking": view === "ranking",
+  };
+  for (const [id, on] of Object.entries(current)) {
+    document.getElementById(id).setAttribute("aria-current", on ? "page" : "false");
+  }
   if (view === "start") renderStart();
   if (view === "play") renderPlay();
+  if (view === "ranking") loadRankings();
 }
 
 function coreSlugList() {
   const slugs = phones.filter((phone) => phone.core === true).map(slugOf);
-  const limited = poolLimit == null ? slugs : slugs.slice(0, poolLimit);
-  return limited;
+  return poolLimit == null ? slugs : slugs.slice(0, poolLimit);
 }
 
 function ensurePreview() {
@@ -283,6 +313,7 @@ function renderPlay() {
     board.replaceChildren();
     renderPodium(podiumEl);
     podiumEl.hidden = false;
+    maybeSubmit();
     return;
   }
   board.hidden = false;
@@ -292,39 +323,17 @@ function renderPlay() {
   roundTitle.textContent = info.roundName;
   progressEl.textContent = `第 ${info.index} 場，共 ${info.total} 場`;
   const match = currentMatch(tournament);
-  board.replaceChildren();
   board.classList.toggle("is-locked", pickLock);
   if (!match?.a || !match?.b || match.a === match.b) {
+    board.replaceChildren();
     const problem = document.createElement("p");
     problem.className = "empty";
     problem.textContent = "這一場的對戰資料不完整。";
     board.append(problem);
     return;
   }
-  board.append(renderCard(bySlug.get(match.a), "a"), renderCard(bySlug.get(match.b), "b"));
+  renderVersus(board, bySlug.get(match.a), bySlug.get(match.b), onPick);
   preloadPhoneImages(phonesForMatch(nextMatch(tournament)));
-}
-
-function renderCard(phone, side) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "match-card";
-  button.dataset.side = side;
-  if (!phone) {
-    button.disabled = true;
-    button.textContent = "找不到這支手機";
-    return button;
-  }
-  const name = `${phone.brand} ${phone.model}`;
-  button.dataset.slug = slugOf(phone);
-  button.setAttribute("aria-label", `選擇 ${name}`);
-  button.append(renderPhoto(phone));
-  const title = document.createElement("h3");
-  title.className = "card-title";
-  title.textContent = name;
-  button.append(title, renderSpecList(phone));
-  button.addEventListener("click", () => onPick(slugOf(phone)));
-  return button;
 }
 
 function onPick(slug) {
@@ -348,6 +357,209 @@ function onPick(slug) {
   }, PICK_LOCK_MS);
 }
 
+function renderVersus(container, left, right, onPickSide) {
+  container.replaceChildren();
+  if (!left || !right) {
+    const problem = document.createElement("p");
+    problem.className = "empty";
+    problem.textContent = "找不到這支手機。";
+    container.append(problem);
+    return;
+  }
+  const head = document.createElement("div");
+  head.className = "versus-head";
+  const title = document.createElement("h2");
+  title.textContent = `${left.model} vs ${right.model}`;
+  const sub = document.createElement("p");
+  sub.textContent = "規格比較";
+  head.append(title, sub);
+  const grid = document.createElement("div");
+  grid.className = "versus-grid";
+  grid.append(
+    renderPhoneCard(left, "a", onPickSide),
+    renderSpecColumn(left, right),
+    renderPhoneCard(right, "b", onPickSide),
+  );
+  container.append(head, grid);
+}
+
+function renderPhoneCard(phone, side, onPickSide) {
+  const card = document.createElement(onPickSide ? "button" : "div");
+  if (onPickSide) card.type = "button";
+  card.className = "phone-card";
+  card.dataset.side = side;
+  const accent = accentOf(phone);
+  card.style.setProperty("--phone-accent", accent);
+  const name = `${phone.brand} ${phone.model}`;
+  if (onPickSide) {
+    card.setAttribute("aria-label", `選擇 ${name}`);
+    card.addEventListener("click", () => onPickSide(slugOf(phone)));
+  }
+  const brand = document.createElement("p");
+  brand.className = "brand";
+  brand.textContent = phone.brand;
+  const model = document.createElement("p");
+  model.className = "model";
+  model.textContent = phone.model;
+  card.append(brand, model, renderPhoto(phone, ""));
+  return card;
+}
+
+function renderSpecColumn(left, right) {
+  const column = document.createElement("div");
+  column.className = "spec-rows";
+  column.append(
+    specRow("晶片", "單核分數", buildChipSide(left, right, "a"), buildChipSide(right, left, "b")),
+    specRow("相機", "主鏡頭", buildCameraSide(left, right, "a"), buildCameraSide(right, left, "b")),
+    numberRow("電池", "容量", left, right, "battery_mAh", "mAh", false),
+    numberRow("重量", "越輕越好", left, right, "weight_g", "g", true),
+    numberRow("更新率", "最高", left, right, "refresh_hz", "Hz", false),
+    textRow("作業系統", "發表時", left, right, "os_at_launch"),
+  );
+  return column;
+}
+
+function specRow(label, sub, sideA, sideB) {
+  const row = document.createElement("div");
+  row.className = "spec-row";
+  const mid = document.createElement("div");
+  mid.className = "spec-mid";
+  const strong = document.createElement("strong");
+  strong.textContent = label;
+  const small = document.createElement("small");
+  small.textContent = sub;
+  mid.append(strong, small);
+  row.append(sideA, mid, sideB);
+  return row;
+}
+
+function numberRow(label, sub, left, right, field, unit, invert) {
+  return specRow(
+    label,
+    sub,
+    metricSide(left, right, field, unit, invert, "a"),
+    metricSide(right, left, field, unit, invert, "b"),
+  );
+}
+
+function textRow(label, sub, left, right, field) {
+  return specRow(label, sub, textSide(left, field, "a"), textSide(right, field, "b"));
+}
+
+function metricSide(phone, other, field, unit, invert, side) {
+  const value = numericValue(phone, field);
+  const otherValue = numericValue(other, field);
+  const wrap = document.createElement("div");
+  wrap.className = `side side-${side}`;
+  const metric = document.createElement("p");
+  metric.className = "metric";
+  if (value == null) {
+    metric.append(missingLabel());
+  } else {
+    const num = document.createElement("span");
+    num.className = "num";
+    num.textContent = field === "weight_g" ? formatWeightNumber(value) : formatNumber(value);
+    metric.append(num);
+    if (unit) {
+      const unitEl = document.createElement("span");
+      unitEl.className = "unit";
+      unitEl.textContent = unit;
+      metric.append(unitEl);
+    }
+  }
+  wrap.append(metric, barTrack(phone, barPercent(value, otherValue, invert)));
+  return wrap;
+}
+
+function textSide(phone, field, side) {
+  const wrap = document.createElement("div");
+  wrap.className = `side side-${side}`;
+  const text = document.createElement("p");
+  text.className = "os-text";
+  const value = phone?.[field];
+  if (value == null || value === "") text.append(missingLabel());
+  else text.textContent = String(value);
+  wrap.append(text);
+  return wrap;
+}
+
+function barTrack(phone, percent) {
+  const track = document.createElement("div");
+  track.className = "track";
+  track.setAttribute("aria-hidden", "true");
+  const fill = document.createElement("span");
+  fill.className = "fill";
+  fill.style.width = `${percent}%`;
+  fill.style.setProperty("--phone-accent", accentOf(phone));
+  fill.style.background = accentOf(phone);
+  track.append(fill);
+  return track;
+}
+
+function missingLabel() {
+  const span = document.createElement("span");
+  span.className = "missing";
+  span.textContent = "待補數據";
+  return span;
+}
+
+function buildChipSide(phone, other, side) {
+  const score = chipScore(phone?.chip);
+  const otherScore = chipScore(other?.chip);
+  const wrap = document.createElement("div");
+  wrap.className = `side side-${side}`;
+  const metric = document.createElement("p");
+  metric.className = "metric";
+  if (score == null) metric.append(missingLabel());
+  else {
+    const num = document.createElement("span");
+    num.className = "num";
+    num.textContent = formatNumber(score);
+    metric.append(num);
+  }
+  const detail = document.createElement("p");
+  detail.className = "detail";
+  detail.textContent = phone?.chip || "";
+  if (phone?.chip) detail.title = phone.chip;
+  wrap.append(metric, barTrack(phone, barPercent(score, otherScore, false)), detail);
+  return wrap;
+}
+
+function buildCameraSide(phone, other, side) {
+  const cam = cameraOf(phone);
+  const otherCam = cameraOf(other);
+  const wrap = document.createElement("div");
+  wrap.className = `side side-${side}`;
+  const metric = document.createElement("p");
+  metric.className = "metric";
+  const main = cam ? Number(cam.main) : null;
+  const otherMain = otherCam ? Number(otherCam.main) : null;
+  if (main == null || Number.isNaN(main)) metric.append(missingLabel());
+  else {
+    const num = document.createElement("span");
+    num.className = "num";
+    num.textContent = formatNumber(main);
+    const unit = document.createElement("span");
+    unit.className = "unit";
+    unit.textContent = "MP";
+    metric.append(num, unit);
+  }
+  const detail = document.createElement("p");
+  detail.className = "detail";
+  if (cam) {
+    const rear = document.createElement("span");
+    rear.className = "rear";
+    rear.textContent = cam.rear;
+    const front = document.createElement("span");
+    front.className = "front";
+    front.textContent = `前鏡頭 ${formatNumber(cam.front)}MP`;
+    detail.title = `${cam.rear} · 前鏡頭 ${formatNumber(cam.front)}MP`;
+    detail.append(rear, front);
+  }
+  wrap.append(metric, barTrack(phone, barPercent(main, otherMain, false)), detail);
+  return wrap;
+}
+
 function renderPodium(container) {
   const places = podium(tournament);
   container.replaceChildren();
@@ -368,7 +580,12 @@ function renderPodium(container) {
     ensurePreview();
     navigate("start");
   });
-  container.append(list, again);
+  const status = document.createElement("p");
+  status.className = "footnote";
+  status.id = "submit-status";
+  if (tournament?.submitError) status.textContent = "尚未連線";
+  else status.hidden = true;
+  container.append(list, status, again);
 }
 
 function renderPlace(place, label, slug) {
@@ -388,15 +605,16 @@ function renderPlace(place, label, slug) {
     return item;
   }
   const name = document.createElement("p");
-  name.className = "card-title";
+  name.className = "model";
   name.textContent = `${phone.brand} ${phone.model}`;
-  item.append(renderPhoto(phone), heading, name);
+  name.style.color = accentOf(phone);
+  item.append(renderPhoto(phone, `${phone.brand} ${phone.model}`), heading, name);
   return item;
 }
 
 const warmedImages = new Set();
 
-function renderPhoto(phone) {
+function renderPhoto(phone, alt) {
   const frame = document.createElement("div");
   frame.className = "photo";
   const showPlaceholder = () => {
@@ -409,38 +627,20 @@ function renderPhoto(phone) {
     model.className = "photo-model";
     model.textContent = phone.model;
     frame.append(brand, model);
-    appendImageCredit(frame, phone);
   };
-  if (!isRemoteImage(phone.image_url)) {
-    showPlaceholder();
-    return frame;
-  }
-  frame.dataset.photo = "remote";
   const image = document.createElement("img");
-  image.alt = `${phone.brand} ${phone.model}`;
-  image.referrerPolicy = "no-referrer";
-  image.loading = "eager";
-  image.fetchPriority = "high";
+  image.alt = alt;
+  image.width = 600;
+  image.height = 600;
+  image.decoding = "async";
   image.addEventListener("error", showPlaceholder, { once: true });
-  image.src = phone.image_url;
+  image.src = photoSrc(phone);
   frame.append(image);
-  appendImageCredit(frame, phone);
   return frame;
 }
 
-function appendImageCredit(frame, phone) {
-  const label = imageSourceLabel(phone.image_source);
-  if (!label) return;
-  const credit = document.createElement("p");
-  credit.className = "photo-credit";
-  credit.textContent = label;
-  frame.append(credit);
-}
-
-function imageSourceLabel(source) {
-  if (!hasText(source)) return "";
-  const raw = source.trim();
-  return SOURCE_LABEL[raw] || SOURCE_LABEL[raw.toLowerCase()] || raw;
+function photoSrc(phone) {
+  return `images/phones/${slugOf(phone)}.webp`;
 }
 
 function nextMatch(state) {
@@ -464,11 +664,9 @@ function phonesForMatch(match) {
 function preloadPhoneImages(phonesToWarm) {
   document.querySelectorAll("link[data-preload-phone]").forEach((node) => node.remove());
   for (const phone of phonesToWarm) {
-    if (!isRemoteImage(phone.image_url)) continue;
-    const url = phone.image_url;
+    const url = photoSrc(phone);
     if (!warmedImages.has(url)) {
       const image = new Image();
-      image.referrerPolicy = "no-referrer";
       image.decoding = "async";
       image.src = url;
       warmedImages.add(url);
@@ -477,74 +675,9 @@ function preloadPhoneImages(phonesToWarm) {
     link.rel = "preload";
     link.as = "image";
     link.href = url;
-    link.referrerPolicy = "no-referrer";
     link.dataset.preloadPhone = "true";
     document.head.append(link);
   }
-}
-
-function isRemoteImage(url) {
-  return typeof url === "string" && /^https?:\/\//i.test(url);
-}
-
-function renderSpecList(phone) {
-  const list = document.createElement("dl");
-  list.className = "spec-list";
-  addSpec(list, "晶片", chipSpec(phone));
-  addSpec(list, "電池", batterySpec(phone));
-  addSpec(list, "重量", valueLine(phone, "weight_g", formatWeight));
-  addSpec(list, "螢幕", screenCell(phone));
-  addSpec(list, "刷新率", refreshCell(phone));
-  addSpec(list, "系統", valueLine(phone, "os_at_launch", (value) => value));
-  return list;
-}
-
-function addSpec(list, label, node) {
-  const row = document.createElement("div");
-  const term = document.createElement("dt");
-  term.textContent = label;
-  const detail = document.createElement("dd");
-  detail.append(node);
-  row.append(term, detail);
-  list.append(row);
-}
-
-function chipSpec(phone) {
-  const wrap = document.createElement("div");
-  wrap.className = "stack";
-  wrap.append(valueLine(phone, "chip", (value) => value));
-  const variants = variantLines(phone.chip_variants);
-  if (!variants.length) return wrap;
-  const note = document.createElement("div");
-  note.className = "subnote";
-  for (const variant of variants) {
-    const line = document.createElement("span");
-    line.className = "variant";
-    line.textContent = variant;
-    note.append(line);
-  }
-  wrap.append(note);
-  return wrap;
-}
-
-function batterySpec(phone) {
-  const wrap = document.createElement("div");
-  wrap.className = "stack";
-  const line = valueLine(phone, "battery_mAh", (value) => `${formatNumber(value)} mAh`);
-  if (BATTERY_SOURCE_LABEL[phone.battery_source_type]) {
-    const source = document.createElement("span");
-    source.className = "subnote";
-    source.textContent = BATTERY_SOURCE_LABEL[phone.battery_source_type];
-    line.append(source);
-  }
-  wrap.append(line);
-  if (phone.official_endurance_hours != null) {
-    const hours = document.createElement("p");
-    hours.className = "endurance";
-    hours.textContent = `官方續航 ${formatNumber(phone.official_endurance_hours)} 小時（僅供參考）`;
-    wrap.append(hours);
-  }
-  return wrap;
 }
 
 function saveTournament() {
@@ -552,7 +685,8 @@ function saveTournament() {
     localStorage.removeItem(STORAGE_KEY);
     return;
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(tournament));
+  const { submitting, submitError, ...stored } = tournament;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
 }
 
 function restoreTournament() {
@@ -568,6 +702,178 @@ function restoreTournament() {
   } catch {
     localStorage.removeItem(STORAGE_KEY);
   }
+}
+
+function visitorId() {
+  const current = localStorage.getItem(VISITOR_KEY);
+  if (current && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(current)) {
+    return current;
+  }
+  const created = crypto.randomUUID();
+  localStorage.setItem(VISITOR_KEY, created);
+  return created;
+}
+
+function deviceKind() {
+  return window.matchMedia("(max-width: 640px)").matches ? "mobile" : "desktop";
+}
+
+async function maybeSubmit() {
+  if (!tournament || tournament.phase !== "done" || tournament.submitted || tournament.submitting) return;
+  const record = gameRecord(tournament);
+  if (!record) return;
+  tournament.submitting = true;
+  tournament.submitted = true;
+  saveTournament();
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/submit_game`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        p: {
+          visitor_id: visitorId(),
+          bracket_size: record.bracket_size,
+          entrants: record.entrants,
+          matches: record.matches,
+          top1: record.top1,
+          top2: record.top2,
+          top3: record.top3,
+          device: deviceKind(),
+        },
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    tournament.submitError = false;
+  } catch {
+    tournament.submitted = false;
+    tournament.submitError = true;
+    saveTournament();
+    const status = document.getElementById("submit-status");
+    if (status) {
+      status.hidden = false;
+      status.textContent = "尚未連線";
+    }
+  } finally {
+    tournament.submitting = false;
+  }
+}
+
+async function loadRankings() {
+  els.rankStatus.hidden = false;
+  els.rankStatus.textContent = "正在讀取排名…";
+  els.rankTop.hidden = true;
+  els.rankList.hidden = true;
+  els.rankTop.replaceChildren();
+  els.rankList.replaceChildren();
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_rankings`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const rows = await response.json();
+    if (!Array.isArray(rows)) throw new Error("排名格式不正確");
+    if (!rows.length) {
+      els.rankStatus.textContent = "還沒有排名";
+      return;
+    }
+    els.rankStatus.hidden = true;
+    renderRankings(rows);
+  } catch {
+    els.rankStatus.hidden = false;
+    els.rankStatus.textContent = "尚未連線";
+  }
+}
+
+function renderRankings(rows) {
+  const top = rows.slice(0, 3);
+  const order = [top[1], top[0], top[2]].filter(Boolean);
+  els.rankTop.hidden = false;
+  els.rankTop.replaceChildren();
+  order.forEach((row) => {
+    const place = top.indexOf(row) + 1;
+    els.rankTop.append(renderRankCard(row, place));
+  });
+  els.rankList.hidden = false;
+  els.rankList.replaceChildren();
+  rows.forEach((row, index) => {
+    els.rankList.append(renderRankItem(row, index + 1));
+  });
+}
+
+function renderRankCard(row, place) {
+  const phone = bySlug.get(row.phone);
+  const card = document.createElement("article");
+  card.className = `rank-card place-${place}`;
+  const label = document.createElement("p");
+  label.className = "place-label";
+  label.textContent = place === 1 ? "第 1 名" : place === 2 ? "第 2 名" : "第 3 名";
+  card.append(label);
+  if (phone) card.append(renderPhoto(phone, `${phone.brand} ${phone.model}`));
+  const brand = document.createElement("p");
+  brand.className = "brand";
+  brand.textContent = phone ? phone.brand : "";
+  const model = document.createElement("p");
+  model.className = "model";
+  model.textContent = phone ? phone.model : row.phone;
+  if (phone) model.style.color = accentOf(phone);
+  const elo = document.createElement("p");
+  elo.className = "elo";
+  elo.textContent = formatElo(row.elo);
+  const meta = document.createElement("p");
+  meta.className = "meta";
+  meta.textContent = `${formatNumber(row.matches)} 場 · ${formatNumber(row.wins)} 勝`;
+  card.append(brand, model, elo, meta);
+  return card;
+}
+
+function renderRankItem(row, place) {
+  const phone = bySlug.get(row.phone);
+  const item = document.createElement("li");
+  const num = document.createElement("span");
+  num.className = "num";
+  num.textContent = String(place);
+  const image = document.createElement("img");
+  image.alt = "";
+  image.width = 46;
+  image.height = 46;
+  if (phone) image.src = photoSrc(phone);
+  const name = document.createElement("span");
+  name.className = "name";
+  if (phone) {
+    name.textContent = phone.model;
+    const small = document.createElement("small");
+    small.textContent = phone.brand;
+    name.append(small);
+  } else {
+    name.textContent = row.phone;
+  }
+  const stats = document.createElement("span");
+  stats.className = "stats";
+  const elo = document.createElement("b");
+  elo.textContent = formatElo(row.elo);
+  const meta = document.createElement("span");
+  meta.textContent = `${formatNumber(row.matches)} 場 · ${formatNumber(row.wins)} 勝`;
+  stats.append(elo, meta);
+  item.append(num, image, name, stats);
+  return item;
+}
+
+function formatElo(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "—";
+  return number.toLocaleString("zh-Hant", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
 function cryptoRandom() {
@@ -619,7 +925,7 @@ function refresh() {
   picker.a.slug = fillPhoneSelect("a", listA);
   picker.b.slug = fillPhoneSelect("b", listB);
   const coreCount = phones.filter((phone) => phone.core).length;
-  els.scopeCount.textContent = `主力機型 ${coreCount} 支 · 全部 ${phones.length} 支`;
+  els.scopeCount.textContent = `參賽機型 ${coreCount} 支 · 全部 ${phones.length} 支`;
   document.getElementById("count-a").textContent = `${listA.length} 支`;
   document.getElementById("count-b").textContent = `${listB.length} 支`;
   renderCompare();
@@ -652,8 +958,7 @@ function fillPhoneSelect(side, list) {
   for (const phone of list) {
     const option = document.createElement("option");
     option.value = slugOf(phone);
-    const suffix = phone.core ? "" : "（非主力）";
-    option.textContent = `${phone.brand} ${phone.model}${suffix}`;
+    option.textContent = `${phone.brand} ${phone.model}`;
     select.append(option);
   }
   const preferred = preferredSlug(side, list);
@@ -676,231 +981,61 @@ function renderCompare() {
   const right = bySlug.get(picker.b.slug);
   const ready = Boolean(left && right);
   els.filterEmpty.hidden = ready;
-  els.compareWrap.hidden = !ready;
+  els.compareBoard.hidden = !ready;
   els.same.hidden = !ready || slugOf(left) !== slugOf(right);
   if (!ready) {
-    els.tbody.replaceChildren();
-    els.headA.replaceChildren();
-    els.headB.replaceChildren();
+    els.compareBoard.replaceChildren();
     return;
   }
-
-  els.headA.replaceChildren(headerCell(left));
-  els.headB.replaceChildren(headerCell(right));
-  els.tbody.replaceChildren();
-  addRow("chip", "晶片", left, right, chipCell);
-  addRow("battery_mAh", "電池容量", left, right, batteryCell, "high");
-  addRow("weight_g", "重量", left, right, (phone) => valueLine(phone, "weight_g", formatWeight), "low");
-  addRow("screen", "螢幕", left, right, screenCell);
-  addRow("refresh_hz", "刷新率", left, right, refreshCell, "high");
-  addRow("os_at_launch", "作業系統", left, right, (phone) => valueLine(phone, "os_at_launch", (value) => value));
-  addRow("source", "來源", left, right, sourceCell);
-  if (hasText(left.notes) || hasText(right.notes)) {
-    addRow("notes", "備註", left, right, notesCell);
-  }
+  renderVersus(els.compareBoard, left, right, null);
 }
 
-function addRow(field, label, left, right, buildCell, better) {
-  const row = document.createElement("tr");
-  row.dataset.field = field;
-  const heading = document.createElement("th");
-  heading.scope = "row";
-  heading.textContent = label;
-  if (better && blocksWinner(left, right, field)) {
-    const hint = document.createElement("span");
-    hint.className = "hint";
-    hint.textContent = "未確認，略過優劣";
-    heading.append(hint);
-  }
-  const cellA = document.createElement("td");
-  const cellB = document.createElement("td");
-  cellA.dataset.side = "a";
-  cellB.dataset.side = "b";
-  cellA.append(buildCell(left));
-  cellB.append(buildCell(right));
-  if (better) {
-    const win = winner(left, right, field, better);
-    const cell = win === "a" ? cellA : win === "b" ? cellB : null;
-    if (cell) {
-      cell.classList.add("win");
-      const line = cell.querySelector(".value-line");
-      if (line) line.prepend(badge("較優", "win"));
-      else cell.prepend(badge("較優", "win"));
+function accentOf(phone) {
+  if (phone && typeof phone.accent === "string" && /^#[0-9a-fA-F]{6}$/.test(phone.accent)) return phone.accent;
+  return BRAND_ACCENT[phone?.brand] || "#d6d3d1";
+}
+
+function cameraOf(phone) {
+  if (!phone) return null;
+  return cameras.get(`${phone.brand}|${phone.model}`) || null;
+}
+
+function chipScore(chip) {
+  if (typeof chip !== "string" || !chip) return null;
+  if (Object.prototype.hasOwnProperty.call(chipScores, chip)) return Number(chipScores[chip][0]);
+  const norm = normalizeChip(chip);
+  let best = null;
+  for (const [key, pair] of Object.entries(chipScores)) {
+    const other = normalizeChip(key);
+    if (!other || !norm) continue;
+    if (norm.includes(other) || other.includes(norm)) {
+      if (!best || other.length > best.length) best = { score: Number(pair[0]), length: other.length };
     }
   }
-  row.append(heading, cellA, cellB);
-  els.tbody.append(row);
+  return best ? best.score : null;
 }
 
-function headerCell(phone) {
-  const wrap = document.createElement("div");
-  const name = document.createElement("div");
-  name.className = "phone-name";
-  name.textContent = `${phone.brand} ${phone.model}`;
-  const meta = document.createElement("div");
-  meta.className = "phone-meta";
-  meta.textContent = `${phone.announce_date} 發表`;
-  wrap.append(name, meta);
-  if (!phone.core) wrap.append(badge("非主力", "muted"));
-  return wrap;
+function normalizeChip(value) {
+  return String(value).toLowerCase().replace(/\s+/g, "");
 }
 
-function chipCell(phone) {
-  const wrap = document.createElement("div");
-  wrap.className = "stack";
-  wrap.append(valueLine(phone, "chip", (value) => value));
-  const variants = variantLines(phone.chip_variants);
-  if (!variants.length) return wrap;
-  const note = document.createElement("div");
-  note.className = "subnote";
-  const label = document.createElement("span");
-  label.className = "subnote-label";
-  label.textContent = "地區版本";
-  note.append(label);
-  for (const variant of variants) {
-    const line = document.createElement("span");
-    line.className = "variant";
-    line.textContent = variant;
-    note.append(line);
+function numericValue(phone, field) {
+  const value = phone?.[field];
+  if (typeof value !== "number" || Number.isNaN(value)) return null;
+  return value;
+}
+
+function barPercent(value, other, invert) {
+  if (value == null) return 0;
+  if (other == null || value === other) return 100;
+  if (!invert) {
+    const max = Math.max(value, other);
+    if (max <= 0) return 0;
+    return Math.max(0, Math.min(100, (value / max) * 100));
   }
-  wrap.append(note);
-  return wrap;
-}
-
-function batteryCell(phone) {
-  const wrap = document.createElement("div");
-  wrap.className = "stack";
-  const line = valueLine(phone, "battery_mAh", (value) => `${formatNumber(value)} mAh`);
-  const source = batterySourceLink(phone);
-  if (source) line.append(source);
-  wrap.append(line);
-  if (phone.official_endurance_hours != null) {
-    const hours = document.createElement("p");
-    hours.className = "endurance";
-    hours.textContent = `官方續航 ${formatNumber(phone.official_endurance_hours)} 小時（僅供參考）`;
-    wrap.append(hours);
-  }
-  return wrap;
-}
-
-function refreshCell(phone) {
-  const wrap = document.createElement("div");
-  wrap.className = "stack";
-  wrap.append(valueLine(phone, "refresh_hz", (value) => `${formatNumber(value)} Hz`));
-  if (hasText(phone.refresh_note)) {
-    const note = document.createElement("p");
-    note.className = "subnote";
-    note.textContent = phone.refresh_note.trim();
-    wrap.append(note);
-  }
-  return wrap;
-}
-
-function batterySourceLink(phone) {
-  const url = phone.battery_source_url;
-  if (typeof url !== "string" || !/^https?:\/\//i.test(url)) return null;
-  const link = document.createElement("a");
-  link.className = "battery-source";
-  link.href = url;
-  link.target = "_blank";
-  link.rel = "noopener noreferrer";
-  link.textContent = BATTERY_SOURCE_LABEL[phone.battery_source_type] || "電池來源";
-  return link;
-}
-
-function variantLines(value) {
-  if (typeof value === "string" && value.trim()) return [value.trim()];
-  if (!Array.isArray(value)) return [];
-  return value.filter((item) => typeof item === "string" && item.trim()).map((item) => item.trim());
-}
-
-function screenCell(phone) {
-  const line = document.createElement("div");
-  line.className = "value-line";
-  line.append(valueLine(phone, "screen_inch", formatInch));
-  line.append(document.createTextNode("·"));
-  line.append(valueLine(phone, "resolution", formatResolution));
-  return line;
-}
-
-function sourceCell(phone) {
-  const wrap = document.createElement("div");
-  wrap.className = "stack";
-  const line = document.createElement("div");
-  line.className = "value-line";
-  const kind = document.createElement("span");
-  kind.className = "source-type";
-  kind.textContent = SOURCE_LABEL[phone.source_type] || phone.source_type || "來源";
-  line.append(kind);
-  if (typeof phone.source_url === "string" && /^https?:\/\//i.test(phone.source_url)) {
-    const link = document.createElement("a");
-    link.href = phone.source_url;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.textContent = "規格來源";
-    line.append(link);
-  }
-  wrap.append(line);
-  if (phone.checked_date) {
-    const checked = document.createElement("p");
-    checked.className = "endurance";
-    checked.textContent = `查核 ${phone.checked_date}`;
-    wrap.append(checked);
-  }
-  return wrap;
-}
-
-function notesCell(phone) {
-  const paragraph = document.createElement("p");
-  paragraph.className = "notes";
-  if (!hasText(phone.notes)) {
-    paragraph.textContent = "—";
-    return paragraph;
-  }
-  appendLinkedText(paragraph, phone.notes.trim());
-  return paragraph;
-}
-
-function valueLine(phone, field, format) {
-  const line = document.createElement("span");
-  line.className = "value-line";
-  const status = fieldStatus(phone, field);
-  const value = phone[field];
-  if (value == null) {
-    const unknown = document.createElement("span");
-    unknown.className = "unknown";
-    unknown.textContent = status === "unconfirmed" ? "未確認" : "—";
-    line.append(unknown);
-    return line;
-  }
-  line.append(document.createTextNode(format(value)));
-  if (status === "inferred") line.append(badge("推定", "inferred"));
-  if (status === "unconfirmed") line.append(badge("未確認", "unconfirmed"));
-  return line;
-}
-
-function badge(text, kind) {
-  const span = document.createElement("span");
-  span.className = `badge badge-${kind}`;
-  span.textContent = text;
-  return span;
-}
-
-function winner(left, right, field, better) {
-  if (blocksWinner(left, right, field)) return null;
-  const a = left[field];
-  const b = right[field];
-  if (a == null || b == null || a === b) return null;
-  const leftWins = better === "high" ? a > b : a < b;
-  return leftWins ? "a" : "b";
-}
-
-function blocksWinner(left, right, field) {
-  return fieldStatus(left, field) === "unconfirmed" || fieldStatus(right, field) === "unconfirmed";
-}
-
-function fieldStatus(phone, field) {
-  return phone.field_status?.[field] || "confirmed";
+  const min = Math.min(value, other);
+  if (value <= 0) return 0;
+  return Math.max(0, Math.min(100, (min / value) * 100));
 }
 
 function sortPhones(list) {
@@ -931,44 +1066,9 @@ function formatNumber(value) {
   return Number(value).toLocaleString("zh-Hant");
 }
 
-function formatWeight(value) {
+function formatWeightNumber(value) {
   const tenths = Math.round(Number(value) * 10) / 10;
-  const text = Number.isInteger(tenths) ? String(tenths) : tenths.toFixed(1);
-  return `${text} g`;
-}
-
-function formatInch(value) {
-  const hundredths = Math.round(Number(value) * 100) / 100;
-  return `${hundredths} 吋`;
-}
-
-function formatResolution(value) {
-  return String(value).replace(/x/gi, "×");
-}
-
-function hasText(value) {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
-function appendLinkedText(parent, text) {
-  const matcher = /https?:\/\/[^\s]+/g;
-  let last = 0;
-  for (const match of text.matchAll(matcher)) {
-    const start = match.index ?? 0;
-    if (start > last) parent.append(document.createTextNode(text.slice(last, start)));
-    const raw = match[0];
-    const url = raw.replace(/[),.;，。、]+$/, "");
-    const trailing = raw.slice(url.length);
-    const link = document.createElement("a");
-    link.href = url;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.textContent = url;
-    parent.append(link);
-    if (trailing) parent.append(document.createTextNode(trailing));
-    last = start + raw.length;
-  }
-  if (last < text.length) parent.append(document.createTextNode(text.slice(last)));
+  return Number.isInteger(tenths) ? String(tenths) : tenths.toFixed(1);
 }
 
 globalThis.__phoneVersus = {
@@ -982,6 +1082,7 @@ globalThis.__phoneVersus = {
     return bySlug;
   },
   slugOf,
+  chipScore,
   setPoolLimit(limit) {
     poolLimit = limit;
     preview.entrants = [];
