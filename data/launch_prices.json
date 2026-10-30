@@ -1,0 +1,548 @@
+[
+  [
+    "Apple",
+    "iPhone 18 Pro Max",
+    49900,
+    0
+  ],
+  [
+    "Apple",
+    "iPhone 18 Pro",
+    44900,
+    0
+  ],
+  [
+    "Apple",
+    "iPhone 17e",
+    21900,
+    0
+  ],
+  [
+    "Apple",
+    "iPhone 17 Pro Max",
+    44900,
+    0
+  ],
+  [
+    "Apple",
+    "iPhone 17 Pro",
+    39900,
+    0
+  ],
+  [
+    "Apple",
+    "iPhone Air",
+    36900,
+    0
+  ],
+  [
+    "Apple",
+    "iPhone 17",
+    29900,
+    0
+  ],
+  [
+    "Apple",
+    "iPhone 16e",
+    21900,
+    0
+  ],
+  [
+    "Apple",
+    "iPhone 16 Pro Max",
+    44900,
+    0
+  ],
+  [
+    "Apple",
+    "iPhone 16 Pro",
+    36900,
+    0
+  ],
+  [
+    "Apple",
+    "iPhone 16 Plus",
+    32900,
+    0
+  ],
+  [
+    "Apple",
+    "iPhone 16",
+    29900,
+    0
+  ],
+  [
+    "Samsung",
+    "Galaxy S26 FE",
+    25900,
+    0
+  ],
+  [
+    "Samsung",
+    "Galaxy A57",
+    17990,
+    0
+  ],
+  [
+    "Samsung",
+    "Galaxy A37",
+    14490,
+    0
+  ],
+  [
+    "Samsung",
+    "Galaxy S26 Ultra",
+    44900,
+    0
+  ],
+  [
+    "Samsung",
+    "Galaxy S26+",
+    37900,
+    0
+  ],
+  [
+    "Samsung",
+    "Galaxy S26",
+    30900,
+    0
+  ],
+  [
+    "Samsung",
+    "Galaxy S25 FE",
+    22990,
+    0
+  ],
+  [
+    "Samsung",
+    "Galaxy S25 Edge",
+    37900,
+    0
+  ],
+  [
+    "Samsung",
+    "Galaxy A56",
+    16990,
+    0
+  ],
+  [
+    "Samsung",
+    "Galaxy A36",
+    13990,
+    0
+  ],
+  [
+    "Samsung",
+    "Galaxy S25 Ultra",
+    43900,
+    0
+  ],
+  [
+    "Samsung",
+    "Galaxy S25+",
+    34900,
+    0
+  ],
+  [
+    "Samsung",
+    "Galaxy S25",
+    27900,
+    0
+  ],
+  [
+    "Samsung",
+    "Galaxy S24 FE",
+    22990,
+    0
+  ],
+  [
+    "Samsung",
+    "Galaxy A55",
+    14990,
+    0
+  ],
+  [
+    "Samsung",
+    "Galaxy A35",
+    11990,
+    0
+  ],
+  [
+    "Samsung",
+    "Galaxy S24 Ultra",
+    43900,
+    0
+  ],
+  [
+    "Samsung",
+    "Galaxy S24+",
+    34900,
+    0
+  ],
+  [
+    "Samsung",
+    "Galaxy S24",
+    27900,
+    0
+  ],
+  [
+    "Google",
+    "Pixel 11 Pro XL",
+    42990,
+    0
+  ],
+  [
+    "Google",
+    "Pixel 11 Pro",
+    36990,
+    0
+  ],
+  [
+    "Google",
+    "Pixel 11",
+    29990,
+    0
+  ],
+  [
+    "Google",
+    "Pixel 10a",
+    16490,
+    0
+  ],
+  [
+    "Google",
+    "Pixel 10 Pro XL",
+    39990,
+    0
+  ],
+  [
+    "Google",
+    "Pixel 10 Pro",
+    33490,
+    0
+  ],
+  [
+    "Google",
+    "Pixel 10",
+    26490,
+    0
+  ],
+  [
+    "Google",
+    "Pixel 9a",
+    16490,
+    0
+  ],
+  [
+    "Google",
+    "Pixel 9 Pro XL",
+    39990,
+    0
+  ],
+  [
+    "Google",
+    "Pixel 9 Pro",
+    33490,
+    0
+  ],
+  [
+    "Google",
+    "Pixel 9",
+    26490,
+    0
+  ],
+  [
+    "Google",
+    "Pixel 8a",
+    16490,
+    0
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 18 Pro Max",
+    33091,
+    1
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 18 Pro",
+    28363,
+    1
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 17 Ultra",
+    37999,
+    0
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 17",
+    24999,
+    0
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 17 Pro Max",
+    25589,
+    1
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 17 Pro",
+    21324,
+    1
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 15S Pro",
+    22939,
+    1
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 15 Ultra",
+    34999,
+    0
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 15",
+    22999,
+    0
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 15 Pro",
+    23856,
+    1
+  ],
+  [
+    "Xiaomi",
+    "Xiaomi 14 Ultra",
+    34999,
+    0
+  ],
+  [
+    "Huawei",
+    "Mate 80 Pro Max",
+    35498,
+    1
+  ],
+  [
+    "Huawei",
+    "Mate 80",
+    20853,
+    1
+  ],
+  [
+    "Huawei",
+    "Pura 80 Ultra",
+    41468,
+    1
+  ],
+  [
+    "Huawei",
+    "Pura 80 Pro+",
+    33173,
+    1
+  ],
+  [
+    "Huawei",
+    "Mate 70 Pro+",
+    38053,
+    1
+  ],
+  [
+    "Huawei",
+    "Mate 70 Pro",
+    29099,
+    1
+  ],
+  [
+    "Huawei",
+    "Mate 70",
+    24621,
+    1
+  ],
+  [
+    "Huawei",
+    "Pura 70 Ultra",
+    44855,
+    1
+  ],
+  [
+    "Huawei",
+    "Pura 70 Pro+",
+    35883,
+    1
+  ],
+  [
+    "Huawei",
+    "Pura 70 Pro",
+    29154,
+    1
+  ],
+  [
+    "OPPO",
+    "Find X10 Pro Max",
+    58990,
+    0
+  ],
+  [
+    "OPPO",
+    "Find X10",
+    42990,
+    0
+  ],
+  [
+    "OPPO",
+    "Find X10 E",
+    23661,
+    1
+  ],
+  [
+    "OPPO",
+    "Reno16 Pro",
+    20825,
+    1
+  ],
+  [
+    "OPPO",
+    "Reno16",
+    24990,
+    0
+  ],
+  [
+    "OPPO",
+    "Find X9 Ultra",
+    54990,
+    0
+  ],
+  [
+    "OPPO",
+    "Find X9s Pro",
+    24425,
+    1
+  ],
+  [
+    "OPPO",
+    "Find X9s",
+    32990,
+    0
+  ],
+  [
+    "OPPO",
+    "Reno15 Pro",
+    20990,
+    0
+  ],
+  [
+    "OPPO",
+    "Reno15",
+    17990,
+    0
+  ],
+  [
+    "OPPO",
+    "Find X9 Pro",
+    38990,
+    0
+  ],
+  [
+    "OPPO",
+    "Find X9",
+    28990,
+    0
+  ],
+  [
+    "OPPO",
+    "Reno14 Pro",
+    23990,
+    0
+  ],
+  [
+    "OPPO",
+    "Reno14",
+    17990,
+    0
+  ],
+  [
+    "OPPO",
+    "Find X8 Ultra",
+    29198,
+    1
+  ],
+  [
+    "OPPO",
+    "Find X8s+",
+    18865,
+    1
+  ],
+  [
+    "OPPO",
+    "Find X8s",
+    18865,
+    1
+  ],
+  [
+    "OPPO",
+    "Reno13 Pro",
+    23990,
+    0
+  ],
+  [
+    "OPPO",
+    "Reno13",
+    17990,
+    0
+  ],
+  [
+    "OPPO",
+    "Find X8 Pro",
+    37990,
+    0
+  ],
+  [
+    "OPPO",
+    "Find X8",
+    27990,
+    0
+  ],
+  [
+    "OPPO",
+    "Reno12 Pro",
+    17990,
+    0
+  ],
+  [
+    "OPPO",
+    "Reno12",
+    14990,
+    0
+  ],
+  [
+    "OPPO",
+    "Reno11 Pro",
+    17990,
+    0
+  ],
+  [
+    "OPPO",
+    "Reno11",
+    13990,
+    0
+  ],
+  [
+    "OPPO",
+    "Find X7 Ultra",
+    25945,
+    1
+  ],
+  [
+    "OPPO",
+    "Find X7",
+    17295,
+    1
+  ]
+]

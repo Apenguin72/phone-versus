@@ -20,6 +20,7 @@ SCHEMA_PATH = ROOT / "data" / "schema.json"
 DATA_PATH = ROOT / "data" / "phones.json"
 CHIP_PATH = ROOT / "data" / "chip_scores.json"
 CAMERA_PATH = ROOT / "data" / "camera_specs.json"
+PRICE_PATH = ROOT / "data" / "launch_prices.json"
 IMAGE_DIR = ROOT / "images" / "phones"
 CUTOFF = date(2023, 11, 1)
 # Tournament field. main() and --self-test both reject a drift.
@@ -143,6 +144,7 @@ def main(argv: list[str]) -> int:
     errors.extend(census_errors(records))
     errors.extend(asset_errors(records))
     errors.extend(camera_errors(records))
+    errors.extend(price_errors(records))
     for line in unmatched_chips(records):
         print(f"unmatched chip: {line}")
     if errors:
@@ -318,6 +320,51 @@ def camera_errors(records) -> list[str]:
     for brand, model in by_phone:
         if f"{brand}|{model}" not in EXPECTED_KEYS:
             errors.append(f"camera_specs.json unexpected phone {brand} {model}")
+    return errors
+
+
+def price_errors(records) -> list[str]:
+    if not isinstance(records, list):
+        return []
+    rows = json.loads(PRICE_PATH.read_text(encoding="utf-8"))
+    errors = []
+    if not isinstance(rows, list):
+        return ["launch_prices.json must be an array"]
+    by_phone = {}
+    for index, row in enumerate(rows):
+        if (
+            not isinstance(row, list)
+            or len(row) != 4
+            or not isinstance(row[0], str)
+            or not isinstance(row[1], str)
+            or isinstance(row[2], bool)
+            or not isinstance(row[2], int)
+            or isinstance(row[3], bool)
+            or row[3] not in (0, 1)
+        ):
+            errors.append(
+                f"launch_prices.json row {index + 1} is not [brand, model, launch_price_twd, converted]"
+            )
+            continue
+        low, high = 1000, 200000
+        if not low <= row[2] <= high:
+            errors.append(
+                f"launch_prices.json {row[0]} {row[1]}: launch_price_twd={row[2]} "
+                f"is outside {low}..{high}"
+            )
+        key = (row[0], row[1])
+        if key in by_phone:
+            errors.append(f"launch_prices.json duplicate {row[0]} {row[1]}")
+        by_phone[key] = row
+    for rec in records:
+        if not isinstance(rec, dict):
+            continue
+        key = (rec.get("brand"), rec.get("model"))
+        if key not in by_phone:
+            errors.append(f"{phone_label(rec, 0)}: missing launch_prices.json row")
+    for brand, model in by_phone:
+        if f"{brand}|{model}" not in EXPECTED_KEYS:
+            errors.append(f"launch_prices.json unexpected phone {brand} {model}")
     return errors
 
 
@@ -757,7 +804,7 @@ def self_test(schema: dict) -> int:
     real = json.loads(DATA_PATH.read_text(encoding="utf-8"))
     ok &= expect_ok("researcher dataset", real)
     cases += 1
-    census = census_errors(real) + asset_errors(real) + camera_errors(real)
+    census = census_errors(real) + asset_errors(real) + camera_errors(real) + price_errors(real)
     if census:
         ok = False
         print("FAIL researcher census:")

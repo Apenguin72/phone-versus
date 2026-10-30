@@ -47,6 +47,7 @@ let phones = [];
 let bySlug = new Map();
 let chipScores = {};
 let cameras = new Map();
+let prices = new Map();
 let tournament = null;
 let preview = { size: 16, entrants: [] };
 let poolLimit = null;
@@ -78,10 +79,11 @@ async function init() {
   });
 
   try {
-    const [phoneResponse, chipResponse, cameraResponse] = await Promise.all([
+    const [phoneResponse, chipResponse, cameraResponse, priceResponse] = await Promise.all([
       fetch("data/phones.json"),
       fetch("data/chip_scores.json"),
       fetch("data/camera_specs.json"),
+      fetch("data/launch_prices.json"),
     ]);
     if (!phoneResponse.ok) throw new Error(`HTTP ${phoneResponse.status}`);
     const data = await phoneResponse.json();
@@ -95,6 +97,13 @@ async function init() {
         main: row[2],
         rear: row[3],
         front: row[4],
+      }]));
+    }
+    if (priceResponse.ok) {
+      const rows = await priceResponse.json();
+      prices = new Map(rows.map((row) => [`${row[0]}|${row[1]}`, {
+        price: row[2],
+        converted: row[3] === 1,
       }]));
     }
   } catch {
@@ -414,7 +423,7 @@ function renderSpecColumn(left, right) {
     numberRow("電池", "容量", left, right, "battery_mAh", "mAh", false),
     numberRow("重量", "越輕越好", left, right, "weight_g", "g", true),
     numberRow("更新率", "最高", left, right, "refresh_hz", "Hz", false),
-    textRow("作業系統", "發表時", left, right, "os_at_launch"),
+    specRow("價格", "首發價", buildPriceSide(left, right, "a"), buildPriceSide(right, left, "b")),
   );
   return column;
 }
@@ -442,10 +451,6 @@ function numberRow(label, sub, left, right, field, unit, invert) {
   );
 }
 
-function textRow(label, sub, left, right, field) {
-  return specRow(label, sub, textSide(left, field, "a"), textSide(right, field, "b"));
-}
-
 function metricSide(phone, other, field, unit, invert, side) {
   const value = numericValue(phone, field);
   const otherValue = numericValue(other, field);
@@ -471,15 +476,30 @@ function metricSide(phone, other, field, unit, invert, side) {
   return wrap;
 }
 
-function textSide(phone, field, side) {
+function buildPriceSide(phone, other, side) {
+  const price = priceOf(phone);
+  const otherPrice = priceOf(other);
+  const value = priceAmount(price);
+  const otherValue = priceAmount(otherPrice);
   const wrap = document.createElement("div");
   wrap.className = `side side-${side}`;
-  const text = document.createElement("p");
-  text.className = "os-text";
-  const value = phone?.[field];
-  if (value == null || value === "") text.append(missingLabel());
-  else text.textContent = String(value);
-  wrap.append(text);
+  const metric = document.createElement("p");
+  metric.className = "metric";
+  if (value == null) {
+    metric.append(missingLabel());
+  } else {
+    const num = document.createElement("span");
+    num.className = "num";
+    num.textContent = `NT$${formatNumber(value)}`;
+    metric.append(num);
+    if (price.converted) {
+      const note = document.createElement("span");
+      note.className = "unit";
+      note.textContent = "（換算）";
+      metric.append(note);
+    }
+  }
+  wrap.append(metric, barTrack(phone, barPercent(value, otherValue, true)));
   return wrap;
 }
 
@@ -998,6 +1018,17 @@ function accentOf(phone) {
 function cameraOf(phone) {
   if (!phone) return null;
   return cameras.get(`${phone.brand}|${phone.model}`) || null;
+}
+
+function priceOf(phone) {
+  if (!phone) return null;
+  return prices.get(`${phone.brand}|${phone.model}`) || null;
+}
+
+function priceAmount(entry) {
+  const value = entry?.price;
+  if (typeof value !== "number" || Number.isNaN(value)) return null;
+  return value;
 }
 
 function chipScore(chip) {
