@@ -46,6 +46,7 @@ const picker = {
 let phones = [];
 let bySlug = new Map();
 let chipScores = {};
+let spec26Max = 0;
 let cameras = new Map();
 let prices = new Map();
 let tournament = null;
@@ -106,6 +107,7 @@ async function init() {
         converted: row[3] === 1,
       }]));
     }
+    recomputeSpec26Max();
   } catch {
     showError("手機資料無法讀取。請確認 data/phones.json 可以從這個網站載入。");
     return;
@@ -418,7 +420,7 @@ function renderSpecColumn(left, right) {
   const column = document.createElement("div");
   column.className = "spec-rows";
   column.append(
-    specRow("晶片", "單核分數", buildChipSide(left, right, "a"), buildChipSide(right, left, "b")),
+    specRow("晶片單核 (6W)", "", buildChipSide(left, right, "a"), buildChipSide(right, left, "b")),
     specRow("相機", "主鏡頭", buildCameraSide(left, right, "a"), buildCameraSide(right, left, "b")),
     numberRow("電池", "容量", left, right, "battery_mAh", "mAh", false),
     numberRow("重量", "越輕越好", left, right, "weight_g", "g", true),
@@ -435,9 +437,12 @@ function specRow(label, sub, sideA, sideB) {
   mid.className = "spec-mid";
   const strong = document.createElement("strong");
   strong.textContent = label;
-  const small = document.createElement("small");
-  small.textContent = sub;
-  mid.append(strong, small);
+  mid.append(strong);
+  if (sub) {
+    const small = document.createElement("small");
+    small.textContent = sub;
+    mid.append(small);
+  }
   row.append(sideA, mid, sideB);
   return row;
 }
@@ -523,9 +528,8 @@ function missingLabel() {
   return span;
 }
 
-function buildChipSide(phone, other, side) {
+function buildChipSide(phone, _other, side) {
   const score = chipScore(phone?.chip);
-  const otherScore = chipScore(other?.chip);
   const wrap = document.createElement("div");
   wrap.className = `side side-${side}`;
   const metric = document.createElement("p");
@@ -534,14 +538,20 @@ function buildChipSide(phone, other, side) {
   else {
     const num = document.createElement("span");
     num.className = "num";
-    num.textContent = formatNumber(score);
+    num.textContent = formatChipScore(score);
     metric.append(num);
+    if (chipConfidence(phone?.chip) !== "measured") {
+      const tag = document.createElement("span");
+      tag.className = "unit";
+      tag.textContent = "推定";
+      metric.append(tag);
+    }
   }
   const detail = document.createElement("p");
   detail.className = "detail";
   detail.textContent = phone?.chip || "";
   if (phone?.chip) detail.title = phone.chip;
-  wrap.append(metric, barTrack(phone, barPercent(score, otherScore, false)), detail);
+  wrap.append(metric, barTrack(phone, chipBarPercent(score)), detail);
   return wrap;
 }
 
@@ -1031,19 +1041,51 @@ function priceAmount(entry) {
   return value;
 }
 
-function chipScore(chip) {
-  if (typeof chip !== "string" || !chip) return null;
-  if (Object.prototype.hasOwnProperty.call(chipScores, chip)) return Number(chipScores[chip][0]);
+function chipRecord(chip) {
+  if (typeof chip !== "string" || !chip || chipScores == null || typeof chipScores !== "object") return null;
+  if (Object.prototype.hasOwnProperty.call(chipScores, chip)) {
+    const direct = chipScores[chip];
+    return direct && typeof direct === "object" && !Array.isArray(direct) ? direct : null;
+  }
   const norm = normalizeChip(chip);
   let best = null;
-  for (const [key, pair] of Object.entries(chipScores)) {
+  for (const [key, entry] of Object.entries(chipScores)) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
     const other = normalizeChip(key);
     if (!other || !norm) continue;
     if (norm.includes(other) || other.includes(norm)) {
-      if (!best || other.length > best.length) best = { score: Number(pair[0]), length: other.length };
+      if (!best || other.length > best.length) best = { entry, length: other.length };
     }
   }
-  return best ? best.score : null;
+  return best ? best.entry : null;
+}
+
+function chipScore(chip) {
+  const value = chipRecord(chip)?.spec26_at_6w;
+  if (typeof value !== "number" || Number.isNaN(value)) return null;
+  return value;
+}
+
+function chipConfidence(chip) {
+  const confidence = chipRecord(chip)?.spec26_6w_confidence;
+  return typeof confidence === "string" ? confidence : null;
+}
+
+function recomputeSpec26Max() {
+  spec26Max = 0;
+  for (const phone of phones) {
+    const score = chipScore(phone?.chip);
+    if (score != null && score > spec26Max) spec26Max = score;
+  }
+}
+
+function chipBarPercent(value) {
+  if (value == null || !(spec26Max > 0)) return 0;
+  return Math.max(0, Math.min(100, (value / spec26Max) * 100));
+}
+
+function formatChipScore(value) {
+  return Number(value).toFixed(2);
 }
 
 function normalizeChip(value) {

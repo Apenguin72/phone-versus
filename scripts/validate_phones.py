@@ -147,6 +147,8 @@ def main(argv: list[str]) -> int:
     errors.extend(price_errors(records))
     for line in unmatched_chips(records):
         print(f"unmatched chip: {line}")
+    for line in missing_spec26(records):
+        print(f"missing spec26_at_6w: {line}")
     if errors:
         print(f"{DATA_PATH}: {len(errors)} problem(s)")
         for err in errors:
@@ -228,12 +230,38 @@ def load_chip_scores():
     scores = json.loads(CHIP_PATH.read_text(encoding="utf-8"))
     if not isinstance(scores, dict) or not scores:
         raise ValueError("chip_scores.json must be an object")
-    for key, pair in scores.items():
-        if not isinstance(key, str) or not isinstance(pair, list) or len(pair) != 2:
+    for key, entry in scores.items():
+        if not isinstance(key, str) or not key or not isinstance(entry, dict):
             raise ValueError(f"bad chip score entry {key!r}")
-        if isinstance(pair[0], bool) or not isinstance(pair[0], int) or not isinstance(pair[1], str):
-            raise ValueError(f"bad chip score entry {key!r}")
+        for field in ("spec26_at_6w", "spec26_6w_method", "spec26_6w_confidence", "spec26_6w_note"):
+            if field not in entry:
+                raise ValueError(f"bad chip score entry {key!r}: missing {field}")
+        score = entry["spec26_at_6w"]
+        if score is not None and (isinstance(score, bool) or not isinstance(score, (int, float))):
+            raise ValueError(f"bad chip score entry {key!r}: spec26_at_6w")
+        method = entry["spec26_6w_method"]
+        note = entry["spec26_6w_note"]
+        confidence = entry["spec26_6w_confidence"]
+        if not isinstance(method, str) or not isinstance(note, str):
+            raise ValueError(f"bad chip score entry {key!r}: spec26 method/note")
+        if confidence is not None and not isinstance(confidence, str):
+            raise ValueError(f"bad chip score entry {key!r}: spec26_6w_confidence")
     return scores
+
+
+def resolve_chip(scores, chip: str):
+    """Same match as the page: exact chip name, else the longest normalized substring."""
+    if chip in scores:
+        return scores[chip]
+    norm = normalize_chip(chip)
+    best = None
+    best_len = -1
+    for key, entry in scores.items():
+        other = normalize_chip(key)
+        if other and norm and (other in norm or norm in other) and len(other) > best_len:
+            best = entry
+            best_len = len(other)
+    return best
 
 
 def unmatched_chips(records) -> list[str]:
@@ -249,18 +277,30 @@ def unmatched_chips(records) -> list[str]:
         if not isinstance(chip, str) or not chip:
             unmatched.append(f"{label}: chip is missing")
             continue
-        if chip in scores:
-            continue
-        norm = normalize_chip(chip)
-        matched = False
-        for key in scores:
-            other = normalize_chip(key)
-            if other and (other in norm or norm in other):
-                matched = True
-                break
-        if not matched:
+        if resolve_chip(scores, chip) is None:
             unmatched.append(f"{label}: {chip}")
     return unmatched
+
+
+def missing_spec26(records) -> list[str]:
+    """Phones whose chip resolves but spec26_at_6w is null. Does not fail validation."""
+    if not isinstance(records, list):
+        return []
+    scores = load_chip_scores()
+    missing = []
+    for rec in records:
+        if not isinstance(rec, dict):
+            continue
+        chip = rec.get("chip")
+        if not isinstance(chip, str) or not chip:
+            continue
+        entry = resolve_chip(scores, chip)
+        if entry is None:
+            continue
+        score = entry.get("spec26_at_6w")
+        if isinstance(score, bool) or not isinstance(score, (int, float)):
+            missing.append(f"{phone_label(rec, 0)}: {chip}")
+    return missing
 
 
 def asset_errors(records) -> list[str]:
@@ -812,6 +852,8 @@ def self_test(schema: dict) -> int:
             print(f"  {err}")
     for line in unmatched_chips(real):
         print(f"unmatched chip: {line}")
+    for line in missing_spec26(real):
+        print(f"missing spec26_at_6w: {line}")
 
     if not ok:
         return 1

@@ -32,7 +32,7 @@ python3 -m http.server 8000
 
 | 列 | 規則 |
 | --- | --- |
-| 晶片 | Geekbench 6 單核，分數來自 `data/chip_scores.json`。晶片名稱以小字顯示。頁面不顯示分數來源，也不顯示多核 |
+| 晶片 | SocPK SPEC CPU 2026 INT 單核在 6 W 的分數（`spec26_at_6w`），來自 `data/chip_scores.json`。顯示到小數兩位。條長對照全部手機裡的最高分。`spec26_6w_confidence` 不是 `measured` 時，數字旁標「推定」。晶片名稱以小字顯示。頁面不顯示 Geekbench，也不顯示多核 |
 | 相機 | 主鏡頭畫素當條長。小字是後鏡頭組合，以及前鏡頭畫素。資料在 `data/camera_specs.json` |
 | 電池 | mAh 較高者條較長 |
 | 重量 | 公克較輕者條較長 |
@@ -71,7 +71,7 @@ python3 -m http.server 8000
 
 其他資料檔：
 
-- `data/chip_scores.json`：晶片字串 → `[Geekbench 6 單核, 來源]`。頁面只讀分數。晶片字串先做完全比對；對不上時再以去掉空白、轉小寫後的子字串比對，取較長的鍵。仍對不上的手機，單核顯示「待補數據」
+- `data/chip_scores.json`：晶片字串 → 物件，含 `spec26_at_6w`（6 W 單核）、`spec26_6w_method`、`spec26_6w_confidence`、`spec26_6w_note`。頁面只讀 6 W 單核。晶片字串先做完全比對；對不上時再以去掉空白、轉小寫後的子字串比對，取較長的鍵。沒有分數的手機，單核顯示「待補數據」
 - `data/camera_specs.json`：`[brand, model, main_camera_mp, rear_cameras, front_camera_mp]`，來源 GSMArena
 - `data/launch_prices.json`：`[brand, model, launch_price_twd, converted]`。`launch_price_twd` 是新台幣首發價。`converted` 為 0 表示台灣官方售價，1 表示由當地首發價換算。缺這列時比較顯示「待補數據」
 - `images/phones/<slug>.webp`：600×600 透明圖，最長邊 560px。用 `python3 scripts/cutout.py` 重建（需要 `rembg`、Pillow、NumPy、SciPy）
@@ -106,4 +106,4 @@ python3 scripts/validate_phones.py --self-test
 node --test scripts/bracket.test.mjs
 ```
 
-對不上晶片分數的手機會印出 `unmatched chip:`，驗證不會因此失敗。驗證失敗時請把訊息留在 pull request，不要直接改研究資料的數值。
+對不上晶片分數的手機會印出 `unmatched chip:`。對得上但沒有 `spec26_at_6w` 的手機會印出 `missing spec26_at_6w:`。這兩種都不會讓驗證失敗。驗證失敗時請把訊息留在 pull request，不要直接改研究資料的數值。
