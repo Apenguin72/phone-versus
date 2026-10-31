@@ -80,6 +80,10 @@ python3 -m http.server 8000
 
 匿名收集每一場淘汰賽，再用勝敗重算社群 Elo。前端只用 publishable key（`app.js` 的 `SUPABASE_KEY`），不改資料表、不跑 migration。
 
+每次載入頁面會用同一個匿名 UUID 呼叫 `record_visit`，只累計造訪次數並記下這位訪客一次（沒有時間戳、沒有 IP）；`localhost`、`127.0.0.1` 與網址帶 `?test` 時不送。
+
+造訪計數和比賽紀錄用同一個匿名隨機 ID（`phone-versus-visitor-id`），所以可以對上同一位訪客，但仍然匿名。
+
 - 專案：<https://dwlgryypcxgaejkislxx.supabase.co>
 - 呼叫方式：`POST {URL}/rest/v1/rpc/<fn>`，header 帶 `apikey`、`Authorization: Bearer <publishable key>`、`Content-Type: application/json`
 
@@ -107,3 +111,5 @@ node --test scripts/bracket.test.mjs
 ```
 
 對不上晶片分數的手機會印出 `unmatched chip:`。對得上但沒有 `spec26_at_6w` 的手機會印出 `missing spec26_at_6w:`。這兩種都不會讓驗證失敗。驗證失敗時請把訊息留在 pull request，不要直接改研究資料的數值。
+
+手動試造訪計數時，`?test` 要放在 hash 前面，例如 `index.html?test#/compare`，因為 `#/compare?test` 偵測不到。
