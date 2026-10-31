@@ -690,6 +690,7 @@ function renderPhoto(phone, alt) {
   frame.className = "photo";
   const showPlaceholder = () => {
     frame.replaceChildren();
+    frame.classList.add("is-placeholder");
     const brand = document.createElement("p");
     brand.className = "photo-brand";
     brand.textContent = phone.brand;
@@ -902,61 +903,151 @@ function renderRankings(rows) {
 }
 
 function renderRankCard(row, place) {
-  const phone = bySlug.get(row.phone);
+  const record = rankingRecord(row);
+  const phone = record.phone;
   const card = document.createElement("article");
   card.className = `rank-card place-${place}`;
   const label = document.createElement("p");
   label.className = "place-label";
   label.textContent = place === 1 ? "第 1 名" : place === 2 ? "第 2 名" : "第 3 名";
-  card.append(label);
-  if (phone) card.append(renderPhoto(phone, `${phone.brand} ${phone.model}`));
+  const name = `${phone.brand} ${phone.model}`;
   const brand = document.createElement("p");
   brand.className = "brand";
-  brand.textContent = phone ? phone.brand : "";
+  brand.textContent = phone.brand;
   const model = document.createElement("p");
   model.className = "model";
-  model.textContent = phone ? phone.model : row.phone;
-  if (phone) model.style.color = accentOf(phone);
+  model.textContent = phone.model;
+  model.style.color = accentOf(phone);
   const elo = document.createElement("p");
   elo.className = "elo";
-  elo.textContent = formatElo(row.elo);
+  elo.textContent = formatElo(record.elo);
   const meta = document.createElement("p");
   meta.className = "meta";
-  meta.textContent = `${formatNumber(row.matches)} 場 · ${formatNumber(row.wins)} 勝`;
-  card.append(brand, model, elo, meta);
+  meta.textContent = `${rankingCount(record.matches)} 場 · ${rankingCount(record.wins)} 勝`;
+  card.append(label, renderPhoto(phone, name), brand, model, elo, meta);
   return card;
 }
 
 function renderRankItem(row, place) {
-  const phone = bySlug.get(row.phone);
+  const record = rankingRecord(row);
+  const phone = record.phone;
   const item = document.createElement("li");
   const num = document.createElement("span");
   num.className = "num";
   num.textContent = String(place);
-  const image = document.createElement("img");
-  image.alt = "";
-  image.width = 46;
-  image.height = 46;
-  if (phone) image.src = photoSrc(phone);
   const name = document.createElement("span");
   name.className = "name";
-  if (phone) {
-    name.textContent = phone.model;
-    const small = document.createElement("small");
-    small.textContent = phone.brand;
-    name.append(small);
-  } else {
-    name.textContent = row.phone;
-  }
+  name.textContent = phone.model;
+  const small = document.createElement("small");
+  small.textContent = phone.brand;
+  name.append(small);
   const stats = document.createElement("span");
   stats.className = "stats";
   const elo = document.createElement("b");
-  elo.textContent = formatElo(row.elo);
+  elo.textContent = formatElo(record.elo);
   const meta = document.createElement("span");
-  meta.textContent = `${formatNumber(row.matches)} 場 · ${formatNumber(row.wins)} 勝`;
+  meta.textContent = `${rankingCount(record.matches)} 場 · ${rankingCount(record.wins)} 勝`;
   stats.append(elo, meta);
-  item.append(num, image, name, stats);
+  let photo;
+  if (record.known) {
+    photo = document.createElement("img");
+    photo.alt = "";
+    photo.width = 46;
+    photo.height = 46;
+    photo.src = photoSrc(phone);
+  } else {
+    photo = renderPhoto(phone, `${phone.brand} ${phone.model}`);
+    photo.setAttribute("aria-hidden", "true");
+  }
+  item.append(num, photo, name, stats);
   return item;
+}
+
+function rankingRecord(row) {
+  const source = row && typeof row === "object" ? row : {};
+  const known = lookupPhone(source.phone);
+  return {
+    phone: known || phoneFromSlug(source.phone),
+    known: Boolean(known),
+    elo: source.elo,
+    matches: source.matches,
+    wins: source.wins,
+  };
+}
+
+function lookupPhone(id) {
+  if (typeof id !== "string") return null;
+  const trimmed = id.trim();
+  if (!trimmed) return null;
+  return bySlug.get(trimmed) || bySlug.get(canonicalPhoneSlug(trimmed)) || null;
+}
+
+function rankingCount(value) {
+  if (!Number.isFinite(Number(value))) return "—";
+  return formatNumber(value);
+}
+
+function phoneFromSlug(slug) {
+  const cleaned = canonicalPhoneSlug(slug);
+  const parts = cleaned.split("-").filter(Boolean);
+  if (!parts.length) return { brand: "未知", model: "未知機型" };
+  const brands = BRAND_ORDER
+    .map((brand) => ({ brand, prefix: slugOf({ brand, model: "" }) }))
+    .sort((a, b) => b.prefix.length - a.prefix.length);
+  let brand = "";
+  let rest = cleaned;
+  for (const item of brands) {
+    if (cleaned === item.prefix || cleaned.startsWith(`${item.prefix}-`)) {
+      brand = item.brand;
+      rest = cleaned.slice(item.prefix.length).replace(/^-/, "");
+      break;
+    }
+  }
+  if (!brand) {
+    if (parts.length < 2) return { brand: "未知", model: humanToken(parts[0]) };
+    brand = humanToken(parts[0]);
+    rest = parts.slice(1).join("-");
+  }
+  return { brand, model: humanModel(rest, brand) || "未知機型" };
+}
+
+function canonicalPhoneSlug(slug) {
+  if (typeof slug !== "string") return "";
+  const trimmed = slug.trim();
+  if (!trimmed) return "";
+  return slugOf({ brand: "", model: trimmed });
+}
+
+function humanModel(rest, brand) {
+  const plusAsSymbol = brand === "Samsung" || brand === "Huawei" || brand === "OPPO";
+  const words = [];
+  for (const token of String(rest || "").split("-").filter(Boolean)) {
+    if (token === "plus" && plusAsSymbol) {
+      if (words.length) words[words.length - 1] += "+";
+      else words.push("+");
+      continue;
+    }
+    words.push(humanToken(token));
+  }
+  return words.join(" ");
+}
+
+function humanToken(token) {
+  const labels = { iphone: "iPhone", fe: "FE", xl: "XL", se: "SE" };
+  if (labels[token]) return labels[token];
+  const mixed = /^([a-z]*)(\d+)([a-z]*)$/.exec(token);
+  if (mixed) {
+    const head = mixed[1];
+    const digits = mixed[2];
+    const tail = !head && mixed[3] === "s" ? "S" : mixed[3];
+    const prefix = !head
+      ? ""
+      : head.length <= 2
+        ? head.toUpperCase()
+        : `${head.charAt(0).toUpperCase()}${head.slice(1)}`;
+    return `${prefix}${digits}${tail}`;
+  }
+  return `${token.charAt(0).toUpperCase()}${token.slice(1)}`;
 }
 
 function formatElo(value) {

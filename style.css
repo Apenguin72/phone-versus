@@ -329,6 +329,10 @@ button.phone-card:hover { border-color: var(--phone-accent, var(--accent)); }
 .photo-brand, .photo-model { margin: 0; }
 .photo-brand { color: var(--muted); font-size: 0.78rem; }
 .photo-model { font-weight: 750; }
+.photo.is-placeholder {
+  flex-direction: column;
+  text-align: center;
+}
 
 .spec-rows { display: grid; gap: 8px; align-content: start; }
 
@@ -495,10 +499,33 @@ button.phone-card:hover { border-color: var(--phone-accent, var(--accent)); }
 }
 
 .rank-list .num { font-weight: 780; font-variant-numeric: tabular-nums; color: var(--muted); }
-.rank-list img {
+.rank-list img,
+.rank-list .photo {
   width: 46px;
   height: 46px;
   object-fit: contain;
+}
+.rank-list .photo {
+  flex-direction: column;
+  line-height: 1.05;
+  overflow: hidden;
+  text-align: center;
+}
+.rank-list .photo-brand,
+.rank-list .photo-model {
+  max-width: 100%;
+  overflow: hidden;
+}
+.rank-list .photo-brand {
+  font-size: 0.5rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.rank-list .photo-model {
+  font-size: 0.56rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 .rank-list .name { font-weight: 700; }
 .rank-list .name small { display: block; color: var(--muted); font-weight: 550; font-size: 0.75rem; }
@@ -529,8 +556,20 @@ button.phone-card:hover { border-color: var(--phone-accent, var(--accent)); }
     padding: 0 8px;
     font-size: 0.78rem;
   }
+  /* Keep the 32px chips. The 44px hit area uses the header padding above them
+     and stops short of 上一步 and the next tab. */
   body[data-route="play"] .tabs button {
+    position: relative;
+    z-index: 1;
     min-height: 32px;
+  }
+  body[data-route="play"] .tabs button::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -10px;
+    height: 44px;
   }
   /* Keep the 32px row so the match still fits; the hit area extends downward. */
   body[data-route="play"] #undo {
@@ -588,4 +627,5 @@ button.phone-card:hover { border-color: var(--phone-accent, var(--accent)); }
   .rank-card.place-1 .photo { height: 120px; }
   .rank-card .model { font-size: 0.82rem; }
   .rank-list li { grid-template-columns: 1.6rem 40px minmax(0, 1fr) auto; gap: 6px; }
+  .rank-list .photo { width: 40px; height: 40px; }
 }
