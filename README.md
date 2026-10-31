@@ -80,6 +80,8 @@ python3 -m http.server 8000
 
 匿名收集每一場淘汰賽，再用勝敗重算社群 Elo。前端只用 publishable key（`app.js` 的 `SUPABASE_KEY`），不改資料表、不跑 migration。
 
+每次載入頁面會用同一個匿名 UUID 呼叫 `record_visit`，只累計造訪次數並記下這位訪客一次（沒有時間戳、沒有 IP）；`localhost`、`127.0.0.1` 與網址帶 `?test` 時不送。
+
 - 專案：<https://dwlgryypcxgaejkislxx.supabase.co>
 - 呼叫方式：`POST {URL}/rest/v1/rpc/<fn>`，header 帶 `apikey`、`Authorization: Bearer <publishable key>`、`Content-Type: application/json`
 

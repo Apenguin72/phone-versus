@@ -60,6 +60,7 @@ const els = {};
 init();
 
 async function init() {
+  recordVisit();
   Object.assign(els, {
     loading: document.getElementById("loading"),
     error: document.getElementById("error"),
@@ -781,6 +782,25 @@ function visitorId() {
   const created = crypto.randomUUID();
   localStorage.setItem(VISITOR_KEY, created);
   return created;
+}
+
+function recordVisit() {
+  try {
+    const host = location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") return;
+    if (new URLSearchParams(location.search).has("test")) return;
+    fetch(`${SUPABASE_URL}/rest/v1/rpc/record_visit`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ p_visitor: visitorId() }),
+    }).catch(() => {});
+  } catch {
+    // A failed visit count must not affect the page.
+  }
 }
 
 function deviceKind() {
