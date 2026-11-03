@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Phone",
-  "description": "2023-11-01（含）以後全球首發的非摺疊直板機。品牌限 Apple、Samsung、Google、Xiaomi、Huawei、OPPO。續航比較只用 battery_mAh；official_endurance_hours 只供顯示，可為 null，且不在 field_status 裡。規格欄位可為 null，但僅限 field_status 標成 unconfirmed。core 為 true 的機型可進入淘汰賽。battery_source_* 只用於 iPhone，必須成對，不可為 null；其他品牌省略。chip_variants、refresh_note、image_url、image_page_url、image_note、image_source、accent 都可省略。image_url 仍是下載用的遠端網址；網站顯示的去背圖在 images/phones/<slug>.webp。accent 是機身主色。",
+  "description": "2023-11-01（含）以後全球首發的非摺疊直板機。品牌限 Apple、Samsung、Google、Xiaomi、Huawei、OPPO。續航比較只用 battery_mAh；official_endurance_hours 只供顯示，可為 null，且不在 field_status 裡。規格欄位可為 null，但僅限 field_status 標成 unconfirmed。core 為 true 的機型可進入淘汰賽。battery_source_* 只用於 iPhone，必須成對，不可為 null；其他品牌省略。chip_variants、refresh_note、image_url、image_page_url、image_note、image_source 都可省略。image_url 仍是下載用的遠端網址；網站顯示的去背圖在 images/phones/<slug>.webp。accent 必填，是機身主色（#rrggbb）。數值欄的 minimum / maximum 是單位合理範圍。這個 schema 只描述一支手機；chip_scores.json、camera_specs.json、launch_prices.json 由 scripts/validate_phones.py 另外檢查。",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -21,7 +21,8 @@
     "source_url",
     "source_type",
     "checked_date",
-    "field_status"
+    "field_status",
+    "accent"
   ],
   "properties": {
     "brand": {
@@ -61,15 +62,21 @@
     },
     "battery_mAh": {
       "type": ["integer", "null"],
-      "description": "電池容量，單位 mAh。比較時數值較高者較優。未確認時不比較。null 只允許 field_status 為 unconfirmed。"
+      "minimum": 100,
+      "maximum": 20000,
+      "description": "電池容量，單位 mAh，合理範圍 100..20000。比較時數值較高者較優。未確認時不比較。null 只允許 field_status 為 unconfirmed。"
     },
     "weight_g": {
       "type": ["number", "null"],
-      "description": "重量，單位公克。比較時數值較低者較優。"
+      "minimum": 50,
+      "maximum": 800,
+      "description": "重量，單位公克，合理範圍 50..800。比較時數值較低者較優。"
     },
     "screen_inch": {
       "type": ["number", "null"],
-      "description": "螢幕尺寸，單位吋。與 resolution 一起顯示，不比較優劣。"
+      "minimum": 3,
+      "maximum": 12,
+      "description": "螢幕尺寸，單位吋，合理範圍 3..12。與 resolution 一起顯示，不比較優劣。"
     },
     "resolution": {
       "type": ["string", "null"],
@@ -78,7 +85,9 @@
     },
     "refresh_hz": {
       "type": ["integer", "null"],
-      "description": "一般最高更新率，單位 Hz。比較時數值較高者較優。遊戲模式等例外寫在 refresh_note。"
+      "minimum": 30,
+      "maximum": 540,
+      "description": "一般最高更新率，單位 Hz，合理範圍 30..540。比較時數值較高者較優。遊戲模式等例外寫在 refresh_note。"
     },
     "refresh_note": {
       "type": ["string", "null"],
@@ -90,7 +99,9 @@
     },
     "official_endurance_hours": {
       "type": ["integer", "null"],
-      "description": "官方續航時數。可為 null。只顯示，不參與比較，也不納入 field_status。"
+      "minimum": 1,
+      "maximum": 500,
+      "description": "官方續航時數，單位小時，合理範圍 1..500。可為 null。只顯示，不參與比較，也不納入 field_status。"
     },
     "source_url": {
       "type": "string",
@@ -165,7 +176,7 @@
     "accent": {
       "type": "string",
       "pattern": "^#[0-9A-Fa-f]{6}$",
-      "description": "去背圖上的機身主色（#rrggbb）。抽不到非灰色時用品牌色。比較條與型號名稱用這個顏色。"
+      "description": "去背圖上的機身主色（#rrggbb）。必填。抽不到非灰色時用品牌色。比較條與型號名稱用這個顏色。"
     }
   }
 }
